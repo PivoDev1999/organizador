@@ -15,6 +15,7 @@ from app.models import (
     User,
 )
 from scripts.seed import DEMO_EMAIL, SeedError, seed
+from tests.helpers import make_settings
 
 EXPECTED_COUNTS = {
     Task: 7,
@@ -63,9 +64,8 @@ def test_seed_links_pet_expenses_and_low_stock_shopping_items(db_session):
 
 
 @pytest.mark.parametrize("password", [None, "", "change-me"])
-def test_seed_requires_real_password(db_session, monkeypatch, password):
-    from app.core.config import get_settings
+def test_seed_requires_real_password(db_session, password):
+    settings = make_settings(seed_user_password=password)
 
-    monkeypatch.setattr(get_settings(), "seed_user_password", password)
     with pytest.raises(SeedError, match="SEED_USER_PASSWORD"):
-        seed(db_session)
+        seed(db_session, settings=settings)
