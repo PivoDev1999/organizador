@@ -10,15 +10,15 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Alembic configurado
 
 ## Fase 1 — Banco de dados completo
-- [ ] Tabela `users`
-- [ ] `tasks`
-- [ ] `routines` e `routine_logs`
-- [ ] `pantry_items` e `shopping_items`
-- [ ] `pets` e `pet_events`
-- [ ] `transactions` e `budgets`
-- [ ] `files` (polimórfica)
-- [ ] Script de dados de exemplo (seed)
-- [ ] Diagrama do banco no README (Mermaid)
+- [x] Tabela `users`
+- [x] `tasks`
+- [x] `routines` e `routine_logs`
+- [x] `pantry_items` e `shopping_items`
+- [x] `pets` e `pet_events`
+- [x] `transactions` e `budgets`
+- [x] `files` (polimórfica)
+- [x] Script de dados de exemplo (seed)
+- [x] Diagrama do banco no README (Mermaid)
 
 ## Fase 2 — Autenticação + Afazeres (módulo modelo)
 - [ ] Cadastro, login e JWT
@@ -26,6 +26,11 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [ ] Testes
 
 ## Fase 3 — Módulos (`/novo-modulo <nome>`)
+> Pendências herdadas da revisão da Fase 1:
+> - O `user_id` de registros filhos (`pet_events`, `routine_logs`, gastos de pet, itens de mercado ligados à despensa) vem sempre do usuário autenticado; o banco rejeita vínculo entre usuários (FK composta).
+> - Rotinas mensais com `day_of_month` 29–31: definir a regra para meses mais curtos (ex.: usar o último dia).
+> - Fuso horário (`TZ`) para cálculos de "hoje" nos services.
+> - Download de arquivos: o Garage só escuta em `127.0.0.1`, então a URL temporária precisa passar pelo proxy (ex.: `/s3`) ou o download vai via API (stream).
 - [ ] Rotina
 - [ ] Despensa
 - [ ] Mercado (com "gerar lista a partir da despensa")

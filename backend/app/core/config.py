@@ -1,11 +1,18 @@
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
-# The single .env lives at the repository root, shared with docker compose.
-ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+# By default the single .env at the repository root, shared with docker compose.
+ENV_FILE = Path(os.environ.get("ENV_FILE") or Path(__file__).resolve().parents[3] / ".env")
+
+PLACEHOLDER = "change-me"
+SECRET_FIELDS = ("secret_key", "postgres_password", "s3_secret_access_key")
+MIN_SECRET_KEY_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -27,6 +34,19 @@ class Settings(BaseSettings):
     s3_access_key_id: str
     s3_secret_access_key: str
     s3_bucket: str
+
+    seed_user_password: str | None = None
+
+    @model_validator(mode="after")
+    def _check_secrets(self) -> Self:
+        placeholders = [name.upper() for name in SECRET_FIELDS if getattr(self, name) == PLACEHOLDER]
+        if placeholders:
+            raise ValueError(f"replace the '{PLACEHOLDER}' placeholder in .env: {', '.join(placeholders)}")
+        if self.environment != "development" and len(self.secret_key) < MIN_SECRET_KEY_LENGTH:
+            raise ValueError(
+                f"SECRET_KEY must have at least {MIN_SECRET_KEY_LENGTH} characters outside development"
+            )
+        return self
 
     @property
     def database_url(self) -> URL:

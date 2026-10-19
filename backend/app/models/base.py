@@ -1,5 +1,9 @@
-from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase
+import uuid
+from collections.abc import Iterable
+from datetime import datetime
+
+from sqlalchemy import DateTime, FetchedValue, MetaData, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Deterministic constraint names keep Alembic migrations stable and reviewable.
 NAMING_CONVENTION = {
@@ -13,3 +17,24 @@ NAMING_CONVENTION = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    # Every timestamp in the project is timezone-aware (timestamptz).
+    type_annotation_map = {datetime: DateTime(timezone=True)}
+
+
+class EntityMixin:
+    """UUID primary key plus created/updated timestamps, shared by every table."""
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        primary_key=True, server_default=func.gen_random_uuid(), sort_order=-100
+    )
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), sort_order=100)
+    # Maintained by the set_updated_at() trigger, so raw SQL updates are covered too.
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), server_onupdate=FetchedValue(), sort_order=100
+    )
+
+
+def in_check(column: str, values: Iterable[str]) -> str:
+    """SQL for a CHECK that emulates an enum on a VARCHAR column."""
+    options = ", ".join(f"'{value}'" for value in values)
+    return f"{column} IN ({options})"
