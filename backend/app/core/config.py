@@ -2,10 +2,13 @@ import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Self
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
+
+from app.core.security import DEFAULT_BCRYPT_ROUNDS, MAX_BCRYPT_ROUNDS, MIN_BCRYPT_ROUNDS
 
 # By default the single .env at the repository root, shared with docker compose.
 ENV_FILE = Path(os.environ.get("ENV_FILE") or Path(__file__).resolve().parents[3] / ".env")
@@ -21,6 +24,11 @@ class Settings(BaseSettings):
     app_name: str = "Organizador"
     environment: str = "development"
     secret_key: str
+    access_token_expire_minutes: int = Field(default=10080, gt=0)
+    allow_registration: bool = False
+    app_timezone: str = "America/Sao_Paulo"
+    # Internal knob: tests lower it to keep the suite fast. Keep the default in real deployments.
+    bcrypt_rounds: int = Field(default=DEFAULT_BCRYPT_ROUNDS, ge=MIN_BCRYPT_ROUNDS, le=MAX_BCRYPT_ROUNDS)
 
     postgres_user: str
     postgres_password: str
@@ -37,16 +45,30 @@ class Settings(BaseSettings):
 
     seed_user_password: str | None = None
 
+    @field_validator("app_timezone")
+    @classmethod
+    def _check_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ValueError(f"APP_TIMEZONE {value!r} is not a valid IANA time zone") from None
+        return value
+
     @model_validator(mode="after")
     def _check_secrets(self) -> Self:
         placeholders = [name.upper() for name in SECRET_FIELDS if getattr(self, name) == PLACEHOLDER]
         if placeholders:
             raise ValueError(f"replace the '{PLACEHOLDER}' placeholder in .env: {', '.join(placeholders)}")
-        if self.environment != "development" and len(self.secret_key) < MIN_SECRET_KEY_LENGTH:
-            raise ValueError(
-                f"SECRET_KEY must have at least {MIN_SECRET_KEY_LENGTH} characters outside development"
-            )
+        if not self.secret_key.strip():
+            raise ValueError("SECRET_KEY must not be empty")
+        # Required in every environment: the home server itself runs with ENVIRONMENT=development.
+        if len(self.secret_key.strip()) < MIN_SECRET_KEY_LENGTH:
+            raise ValueError(f"SECRET_KEY must have at least {MIN_SECRET_KEY_LENGTH} characters")
         return self
+
+    @property
+    def timezone(self) -> ZoneInfo:
+        return ZoneInfo(self.app_timezone)
 
     @property
     def database_url(self) -> URL:
