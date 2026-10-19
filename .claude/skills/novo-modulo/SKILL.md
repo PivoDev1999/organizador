@@ -15,4 +15,4 @@ Crie o módulo **$ARGUMENTS** de ponta a ponta, seguindo o CLAUDE.md.
 6. **Revisão.** Delegue ao agente `code-reviewer`. Corrija tudo que for 🔴.
 7. **Fechamento.** Rode `pytest`, faça commits no padrão Conventional Commits e marque o item no `docs/ROADMAP.md`.
 
-Termine com um resumo em português: o que foi criado, endpoints e como testar em http://localhost:8000/docs.
+Termine com um resumo em português: o que foi criado, endpoints e como testar em `http://localhost:$API_PORT/api/docs`.
