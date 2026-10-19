@@ -3,6 +3,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, EntityMixin
 
+EMAIL_UNIQUE_INDEX = "uq_users_email_lower"
+
 
 class User(EntityMixin, Base):
     __tablename__ = "users"
@@ -14,5 +16,5 @@ class User(EntityMixin, Base):
 
     __table_args__ = (
         # Case-insensitive uniqueness: "Ana@x.com" and "ana@x.com" are the same account.
-        Index("uq_users_email_lower", func.lower(email), unique=True),
+        Index(EMAIL_UNIQUE_INDEX, func.lower(email), unique=True),
     )
