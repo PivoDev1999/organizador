@@ -77,6 +77,9 @@ proxy reverso (Fase 5) vai ficar exposto na rede local.
 
 ## Testes
 
+> O backend lê o `.env` da raiz do repositório. Para usar outro arquivo, defina a variável de ambiente
+> `ENV_FILE` (ex.: `ENV_FILE=/caminho/.env.local pytest`).
+
 ```bash
 cd backend
 pytest                       # usa o banco POSTGRES_TEST_DB (criado na 1ª subida do Postgres)
@@ -101,4 +104,136 @@ docker-compose.yml
 
 ## Modelo de dados
 
-*(diagrama adicionado na Fase 1)*
+Todas as tabelas têm `id uuid` (PK), `created_at` e `updated_at` (`timestamptz`, este mantido por trigger
+no banco). Tabelas de dados têm `user_id` (FK para `users`, `ON DELETE CASCADE`). Valores monetários usam
+`numeric(12,2)` e "enums" são `varchar` com `CHECK`.
+
+As FKs entre módulos são compostas com o dono: por exemplo, `pet_events (pet_id, user_id)` referencia
+`pets (id, user_id)`. Assim o banco garante que um registro filho pertence ao mesmo usuário do pai. Nas
+FKs opcionais, `ON DELETE SET NULL (pet_id)` (PostgreSQL 15+) limpa só o vínculo e mantém o `user_id`.
+
+```mermaid
+erDiagram
+    users ||--o{ tasks : ""
+    users ||--o{ routines : ""
+    users ||--o{ pantry_items : ""
+    users ||--o{ shopping_items : ""
+    users ||--o{ pets : ""
+    users ||--o{ transactions : ""
+    users ||--o{ budgets : ""
+    users ||--o{ files : ""
+    routines ||--o{ routine_logs : "CASCADE"
+    pets ||--o{ pet_events : "CASCADE"
+    pets |o--o{ transactions : "SET NULL (pet_id)"
+    pantry_items |o--o{ shopping_items : "SET NULL (pantry_item_id)"
+
+    users {
+        uuid id PK
+        varchar email UK "único em lower(email)"
+        varchar name
+        varchar password_hash
+        boolean is_active
+    }
+    tasks {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text description
+        varchar status "todo | doing | done; done exige completed_at"
+        varchar priority "low | medium | high"
+        date due_date
+        timestamptz completed_at
+    }
+    routines {
+        uuid id PK
+        uuid user_id FK "UK (id, user_id)"
+        varchar name
+        text description
+        varchar frequency "daily | weekly | monthly"
+        smallint[] days_of_week "0-6, 1 dimensão, só weekly"
+        smallint day_of_month "1-31, só monthly"
+        time time_of_day
+        boolean is_active
+    }
+    routine_logs {
+        uuid id PK
+        uuid routine_id FK "FK (routine_id, user_id); UK (routine_id, done_on)"
+        uuid user_id FK
+        date done_on
+        text note
+    }
+    pantry_items {
+        uuid id PK
+        uuid user_id FK "UK (id, user_id)"
+        varchar name
+        varchar category
+        numeric quantity "10,3"
+        varchar unit
+        numeric min_quantity "10,3"
+        date expires_on
+        varchar location
+    }
+    shopping_items {
+        uuid id PK
+        uuid user_id FK
+        uuid pantry_item_id FK "FK (pantry_item_id, user_id)"
+        varchar name
+        numeric quantity "10,3"
+        varchar unit
+        varchar category
+        numeric estimated_price "12,2"
+        boolean is_purchased "true exige purchased_at"
+        timestamptz purchased_at
+    }
+    pets {
+        uuid id PK
+        uuid user_id FK "UK (id, user_id)"
+        varchar name
+        varchar species
+        varchar breed
+        date birth_date
+        numeric weight_kg "5,2"
+        text notes
+    }
+    pet_events {
+        uuid id PK
+        uuid pet_id FK "FK (pet_id, user_id)"
+        uuid user_id FK
+        varchar type "vaccine | vet | medication | grooming | other"
+        date occurred_on
+        date next_due_on ">= occurred_on"
+        text description
+    }
+    transactions {
+        uuid id PK
+        uuid user_id FK
+        uuid pet_id FK "FK (pet_id, user_id)"
+        varchar type "income | expense"
+        numeric amount "12,2, > 0"
+        varchar category
+        varchar description
+        date due_date
+        timestamptz paid_at
+    }
+    budgets {
+        uuid id PK
+        uuid user_id FK "UK (user_id, category, month)"
+        varchar category
+        date month "sempre dia 1"
+        numeric amount "12,2, >= 0"
+    }
+    files {
+        uuid id PK
+        uuid user_id FK
+        varchar entity_type "task | routine | pantry_item | ..."
+        uuid entity_id "sem FK"
+        varchar bucket "UK (bucket, object_key)"
+        varchar object_key UK
+        varchar original_name
+        varchar content_type
+        bigint size_bytes
+    }
+```
+
+`files` é polimórfica: `entity_type` + `entity_id` apontam para um registro de qualquer módulo, por isso
+`entity_id` não tem FK, e apagar os arquivos de uma entidade removida é responsabilidade da API.
