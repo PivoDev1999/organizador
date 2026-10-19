@@ -10,11 +10,12 @@ import uuid
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
-import bcrypt
 from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core import clock
+from app.core.config import Settings, get_settings
+from app.core.security import hash_password
 from app.models import (
     Budget,
     PantryItem,
@@ -36,9 +37,10 @@ class SeedError(RuntimeError):
     pass
 
 
-def seed(session: Session, password: str | None = None) -> User:
+def seed(session: Session, password: str | None = None, settings: Settings | None = None) -> User:
     """Recreate the demo user with sample data. Flushes but does not commit."""
-    password = password or get_settings().seed_user_password
+    settings = settings or get_settings()
+    password = password or settings.seed_user_password
     if not password or password == "change-me":
         raise SeedError(
             "SEED_USER_PASSWORD não está definida (ou ainda é 'change-me'). "
@@ -50,12 +52,12 @@ def seed(session: Session, password: str | None = None) -> User:
     user = User(
         email=DEMO_EMAIL,
         name=DEMO_NAME,
-        password_hash=bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+        password_hash=hash_password(password, settings.bcrypt_rounds),
     )
     session.add(user)
     session.flush()
 
-    today = date.today()
+    today = clock.today(settings.timezone)
     now = datetime.now(UTC)
     uid = user.id
 

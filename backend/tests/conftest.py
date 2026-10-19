@@ -16,9 +16,11 @@ if _test_db == _main_db or not _test_db.endswith("_test"):
     )
 
 os.environ["POSTGRES_DB"] = _test_db
+# Minimum bcrypt cost keeps the suite fast; tests that check the production cost pass it explicitly.
+os.environ["BCRYPT_ROUNDS"] = "4"
 get_settings.cache_clear()
 
-from collections.abc import Iterator  # noqa: E402
+from collections.abc import Callable, Iterator  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from alembic.config import Config  # noqa: E402
@@ -26,8 +28,12 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from alembic import command  # noqa: E402
-from app.core.database import engine  # noqa: E402
+from app.core.config import Settings  # noqa: E402
+from app.core.database import SESSION_OPTIONS, engine, get_db  # noqa: E402
+from app.core.security import hash_password  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models import User  # noqa: E402
+from tests.helpers import TEST_PASSWORD, make_settings  # noqa: E402
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -51,7 +57,7 @@ def db_session() -> Iterator[Session]:
     """
     with engine.connect() as connection:
         transaction = connection.begin()
-        session = Session(bind=connection, join_transaction_mode="create_savepoint")
+        session = Session(bind=connection, join_transaction_mode="create_savepoint", **SESSION_OPTIONS)
         try:
             yield session
         finally:
@@ -60,6 +66,59 @@ def db_session() -> Iterator[Session]:
 
 
 @pytest.fixture
-def client() -> Iterator[TestClient]:
-    with TestClient(app) as test_client:
-        yield test_client
+def client(db_session: Session) -> Iterator[TestClient]:
+    """API client sharing `db_session`; everything is rolled back after the test.
+
+    Like production (one session per request), whatever a request did not commit is discarded when it
+    ends, so a service that forgets db.commit() fails the test instead of passing silently.
+    """
+
+    def _get_test_db() -> Iterator[Session]:
+        try:
+            yield db_session
+        finally:
+            db_session.rollback()  # create_savepoint mode: undoes only the uncommitted part
+
+    app.dependency_overrides[get_db] = _get_test_db
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def override_settings() -> Iterator[Callable[..., Settings]]:
+    """Replace settings injected via Depends(get_settings): override_settings(allow_registration=True)."""
+
+    def _override(**changes) -> Settings:
+        settings = make_settings(**changes)
+        app.dependency_overrides[get_settings] = lambda: settings
+        return settings
+
+    yield _override
+    app.dependency_overrides.pop(get_settings, None)
+
+
+@pytest.fixture
+def registration_open(override_settings: Callable[..., Settings]) -> Settings:
+    return override_settings(allow_registration=True)
+
+
+@pytest.fixture
+def create_user(db_session: Session) -> Callable[..., User]:
+    def _create(
+        email: str = "ana@example.test", password: str = TEST_PASSWORD, rounds: int | None = None, **fields
+    ) -> User:
+        user = User(
+            email=email,
+            name=fields.pop("name", "Ana"),
+            password_hash=hash_password(password, rounds or get_settings().bcrypt_rounds),
+            **fields,
+        )
+        db_session.add(user)
+        # Committed (to a savepoint) so it survives the per-request rollback of the `client` fixture.
+        db_session.commit()
+        return user
+
+    return _create

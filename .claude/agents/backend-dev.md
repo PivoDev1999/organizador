@@ -1,6 +1,6 @@
 ---
 name: backend-dev
-description: Desenvolvedor Python/FastAPI. Use para criar endpoints, services, repositories, schemas Pydantic, autenticação e integração com o MinIO.
+description: Desenvolvedor Python/FastAPI. Use para criar endpoints, services, repositories, schemas Pydantic, autenticação e integração com o storage S3 (Garage).
 tools: Read, Write, Edit, Glob, Grep, Bash
 model: inherit
 color: green

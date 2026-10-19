@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 
+# Shared with the test fixture, so tests run with the same session behavior as the app.
+SESSION_OPTIONS = {"autoflush": False, "expire_on_commit": False}
+
 engine = create_engine(get_settings().database_url, pool_pre_ping=True)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+SessionLocal = sessionmaker(bind=engine, **SESSION_OPTIONS)
 
 
 def get_db() -> Iterator[Session]:

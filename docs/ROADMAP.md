@@ -21,7 +21,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Diagrama do banco no README (Mermaid)
 
 ## Fase 2 — Autenticação + Afazeres (módulo modelo)
-- [ ] Cadastro, login e JWT
+- [x] Cadastro, login e JWT
 - [ ] CRUD de tarefas com filtros (status, prazo, prioridade)
 - [ ] Testes
 
@@ -47,6 +47,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 ## Fase 5 — Qualidade e instalação na rede local
 - [ ] GitHub Actions (lint + testes + build em todo PR)
 - [ ] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx/Caddy) na porta 80
+- [ ] Limite de tentativas no `POST /api/auth/login` no proxy (ex.: `limit_req` do Nginx / `rate_limit` do Caddy)
 - [ ] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
 - [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
 - [ ] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
