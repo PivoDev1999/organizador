@@ -3,11 +3,11 @@
 Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde parou.
 
 ## Fase 0 — Fundação
-- [ ] Repositório Git + GitHub, README inicial
-- [ ] `docker-compose.yml` com PostgreSQL 16, MinIO (+ criação do bucket) e Adminer
-- [ ] `.env.example` e `.gitignore`
-- [ ] Projeto FastAPI com config via `.env`, conexão com o banco e rota `/health`
-- [ ] Alembic configurado
+- [ ] Repositório Git + GitHub, README inicial *(Git e README ok; falta criar o repositório no GitHub)*
+- [x] `docker-compose.yml` com PostgreSQL 16, Garage (+ serviço `garage-init`: layout, chave e bucket) e Adminer
+- [x] `.env.example` e `.gitignore`
+- [x] Projeto FastAPI com config via `.env`, conexão com o banco e rota `/health`
+- [x] Alembic configurado
 
 ## Fase 1 — Banco de dados completo
 - [ ] Tabela `users`
@@ -31,7 +31,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [ ] Mercado (com "gerar lista a partir da despensa")
 - [ ] Pets
 - [ ] Finanças (orçamento por categoria, contas a pagar)
-- [ ] Arquivos (upload/download com URL temporária no MinIO)
+- [ ] Arquivos (upload/download com URL temporária no Garage, via API S3)
 - [ ] Painel (endpoint que agrega o resumo do dia)
 
 ## Fase 4 — Frontend
@@ -44,7 +44,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [ ] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx/Caddy) na porta 80
 - [ ] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
 - [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
-- [ ] Backup diário automático (pg_dump + cópia do MinIO) com rotação dos arquivos antigos
+- [ ] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
 - [ ] Script de restauração de backup testado
 - [ ] Logs centralizados e página `/health` mostrando o status dos serviços
 - [ ] Instalar como app no celular (PWA)

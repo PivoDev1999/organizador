@@ -11,15 +11,15 @@ Projeto de portfólio: deve seguir práticas de mercado (código limpo, testes, 
 - O sistema roda em um computador de casa (o "servidor") e é acessado pelos outros aparelhos da mesma rede Wi-Fi (PC, celular, tablet), pelo IP do servidor (ex.: `http://192.168.0.10`).
 - **Não há deploy em nuvem** e nada fica exposto para a internet: sem port forwarding no roteador.
 - Tudo sobe com um único `docker compose up -d`: banco, storage, API e frontend.
-- Serviços escutam em `0.0.0.0` para serem acessíveis na rede. Postgres, MinIO e Adminer ficam fechados para a rede, acessíveis só pelo próprio servidor (bind em `127.0.0.1`) ou pela rede interna do Docker.
+- Serviços escutam em `0.0.0.0` para serem acessíveis na rede. Postgres, Garage e Adminer ficam fechados para a rede, acessíveis só pelo próprio servidor (bind em `127.0.0.1`) ou pela rede interna do Docker.
 - Endereços e portas vêm do `.env`, nunca fixos no código. O frontend chama a API por caminho relativo (`/api`) via proxy reverso (Nginx ou Caddy) na porta 80.
 - O sistema deve funcionar **sem internet**: nenhuma dependência de CDN, fonte externa ou API externa obrigatória.
-- Backup automático diário do Postgres e do MinIO em uma pasta local (`backups/`).
+- Backup automático diário do Postgres e do Garage em uma pasta local (`backups/`).
 
 ## Stack
 - Backend: Python 3.12 + FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic v2
 - Banco: PostgreSQL 16 (via Docker)
-- Arquivos: MinIO (compatível com S3), metadados na tabela `files`
+- Arquivos: Garage (compatível com S3; substituiu o MinIO, cuja edição Community foi descontinuada), acessado via API S3 (boto3), metadados na tabela `files`. O layout, a chave e o bucket são criados pelo serviço `garage-init` do compose.
 - Frontend: React + TypeScript + Vite + Tailwind
 - Testes: pytest (backend), Vitest (frontend)
 - Infra: Docker Compose na rede local, Nginx/Caddy como proxy reverso, GitHub Actions para CI (o código vai pro GitHub, o sistema não)
@@ -37,7 +37,8 @@ Projeto de portfólio: deve seguir práticas de mercado (código limpo, testes, 
 ## Estrutura de pastas
 ```
 backend/app/{api/routers, services, repositories, models, schemas, core}
-backend/alembic/   backend/tests/
+backend/alembic/   backend/tests/   backend/scripts/
+infra/{postgres, garage}   (config e scripts de init dos serviços)
 frontend/src/{pages, components, api}
 docker-compose.yml   .env.example   docs/
 ```
@@ -55,10 +56,13 @@ docker-compose.yml   .env.example   docs/
 
 ## Comandos
 - Subir infra: `docker compose up -d`
+- Ambiente Python: `cd backend && python3.12 -m venv .venv && .venv/bin/pip install -e ".[dev]"` (ative com `source .venv/bin/activate`)
 - Migrations: `cd backend && alembic upgrade head`
 - Nova migration: `alembic revision --autogenerate -m "descricao"`
-- Testes: `cd backend && pytest`
-- API local: `cd backend && uvicorn app.main:app --reload` (docs em http://localhost:8000/docs)
+- Seed: `cd backend && python -m scripts.seed`
+- Testes: `cd backend && pytest` (usa o banco `POSTGRES_TEST_DB`)
+- Lint: `cd backend && ruff check . && ruff format --check .`
+- API local: `cd backend && uvicorn app.main:app --reload --port $API_PORT` (docs em `http://localhost:$API_PORT/api/docs`)
 
 ## Fluxo de trabalho
 - Uma branch por funcionalidade (`feat/tasks-crud`), commits pequenos no padrão Conventional Commits.
