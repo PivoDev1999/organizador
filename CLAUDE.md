@@ -52,6 +52,7 @@ docker-compose.yml   .env.example   docs/
 ## Regras de código
 - Camadas: router → service → repository. Regra de negócio só no service.
 - Nada de senha ou chave no código: tudo em `.env` (só `.env.example` vai pro Git).
+- Mensagens de validação e de erro nunca incluem o valor recebido (nada de `f"... {value!r}"`): elas vão direto para o cliente e podem expor senhas ou dados pessoais.
 - Todo endpoint novo ganha teste. Rodar `pytest` antes de dizer que terminou.
 
 ## Comandos
