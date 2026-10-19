@@ -3,7 +3,7 @@
 Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde parou.
 
 ## Fase 0 — Fundação
-- [ ] Repositório Git + GitHub, README inicial *(Git e README ok; falta criar o repositório no GitHub)*
+- [x] Repositório Git + GitHub, README inicial
 - [x] `docker-compose.yml` com PostgreSQL 16, Garage (+ serviço `garage-init`: layout, chave e bucket) e Adminer
 - [x] `.env.example` e `.gitignore`
 - [x] Projeto FastAPI com config via `.env`, conexão com o banco e rota `/health`
