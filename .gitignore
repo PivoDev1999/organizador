@@ -1,6 +1,15 @@
 .env
+.env.*
+!.env.example
 *.log
 __pycache__/
+*.py[cod]
+*.egg-info/
 .venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 node_modules/
-backups/*.sql
+backups/*
+!backups/.gitkeep
