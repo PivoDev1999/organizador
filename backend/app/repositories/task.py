@@ -8,10 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.models import Task, TaskPriority, TaskSort, TaskStatus
 from app.repositories.errors import flush
+from app.repositories.search import LIKE_ESCAPE, escape_like
 
 # Priority sorts by weight, not alphabetically ("high" < "low" < "medium" would be wrong).
 PRIORITY_WEIGHT = {TaskPriority.LOW: 1, TaskPriority.MEDIUM: 2, TaskPriority.HIGH: 3}
-LIKE_ESCAPE = "\\"
 
 
 @dataclass(frozen=True)
@@ -26,15 +26,6 @@ class TaskFilters:
     overdue_before: date | None = None
     # Plain text, matched literally (case-insensitive) in title or description.
     search: str | None = None
-
-
-def escape_like(term: str) -> str:
-    """Escape LIKE wildcards so `%`, `_` and the escape character itself match literally."""
-    return (
-        term.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
-        .replace("%", LIKE_ESCAPE + "%")
-        .replace("_", LIKE_ESCAPE + "_")
-    )
 
 
 def _conditions(user_id: uuid.UUID, filters: TaskFilters) -> list[ColumnElement[bool]]:

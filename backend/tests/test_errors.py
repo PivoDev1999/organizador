@@ -3,7 +3,14 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.errors import register_exception_handlers
-from app.core.errors import ConflictError, DomainError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.errors import (
+    ConflictError,
+    DomainError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+)
 
 
 class PetNotFound(NotFoundError):
@@ -17,6 +24,7 @@ ERRORS = {
     "conflict": ConflictError,
     "forbidden": ForbiddenError,
     "unauthorized": UnauthorizedError,
+    "validation": ValidationError,
 }
 
 
@@ -41,13 +49,15 @@ def errors_client() -> TestClient:
         ("conflict", 409, "Conflito com um registro existente."),
         ("forbidden", 403, "Operação não permitida."),
         ("unauthorized", 401, "Não autenticado."),
+        ("validation", 422, "Dados inválidos."),
     ],
 )
 def test_domain_errors_map_to_http_status(errors_client, name, status_code, detail):
     response = errors_client.get(f"/raise/{name}")
 
     assert response.status_code == status_code
-    assert response.json() == {"detail": detail}
+    expected = [{"type": "value_error", "loc": ["body"], "msg": detail}] if status_code == 422 else detail
+    assert response.json() == {"detail": expected}
 
 
 def test_domain_error_accepts_custom_detail(errors_client):
