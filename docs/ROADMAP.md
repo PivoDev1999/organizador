@@ -23,7 +23,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 ## Fase 2 — Autenticação + Afazeres (módulo modelo)
 - [x] Cadastro, login e JWT
 - [x] CRUD de tarefas com filtros (status, prazo, prioridade, atraso, busca, ordenação e paginação)
-- [ ] Testes
+- [x] Testes
 
 ## Fase 3 — Módulos (`/novo-modulo <nome>`)
 > Pendências herdadas da revisão da Fase 1:
