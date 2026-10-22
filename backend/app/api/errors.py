@@ -32,17 +32,61 @@ def _safe_text(value: Any) -> Any:
     return value.encode("utf-8", "replace").decode() if isinstance(value, str) else value
 
 
-def _public_error(error: dict[str, Any]) -> dict[str, Any]:
-    """Validation error without `input`, `ctx` and `url`: never echo what the user typed (passwords)."""
-    message = error["msg"]
-    if error["type"] == "value_error" and "error" in error.get("ctx", {}):
+DATE_MESSAGE = "Informe uma data válida no formato AAAA-MM-DD."
+INTEGER_MESSAGE = "Informe um número inteiro."
+OBJECT_MESSAGE = "Informe um objeto JSON."
+FALLBACK_MESSAGE = "Valor inválido."
+
+# Portuguese message per Pydantic error type. Placeholders come only from the error `ctx` keys
+# ge, le, min_length, max_length and expected, which describe the schema, never the received value.
+MESSAGES_BY_TYPE: dict[str, str] = {
+    "missing": "Campo obrigatório.",
+    "string_type": "Informe um texto.",
+    "extra_forbidden": "Campo não permitido.",
+    "enum": "Valor inválido. Use um destes: {expected}.",
+    "literal_error": "Valor inválido. Use um destes: {expected}.",
+    "bool_parsing": "Informe true ou false.",
+    "int_parsing": INTEGER_MESSAGE,
+    "int_type": INTEGER_MESSAGE,
+    "date_parsing": DATE_MESSAGE,
+    "date_from_datetime_parsing": DATE_MESSAGE,
+    "date_type": DATE_MESSAGE,
+    "uuid_parsing": "Identificador inválido.",
+    "greater_than_equal": "O valor deve ser maior ou igual a {ge}.",
+    "less_than_equal": "O valor deve ser menor ou igual a {le}.",
+    "string_too_long": "O texto deve ter no máximo {max_length} caracteres.",
+    "string_too_short": "O texto deve ter pelo menos {min_length} caracteres.",
+    "json_invalid": "JSON inválido.",
+    "model_attributes_type": OBJECT_MESSAGE,
+    "dict_type": OBJECT_MESSAGE,
+    "list_type": "Informe uma lista.",
+}
+SAFE_CTX_KEYS = ("ge", "le", "min_length", "max_length", "expected")
+
+
+def _message(error: dict[str, Any]) -> str:
+    ctx = error.get("ctx") or {}
+    if error["type"] == "value_error" and "error" in ctx:
         # Our own validator message, without Pydantic's "Value error, " prefix. Validator messages go
         # straight to the client, so they must never include the received value.
-        message = str(error["ctx"]["error"])
+        return str(ctx["error"])
+    template = MESSAGES_BY_TYPE.get(error["type"], FALLBACK_MESSAGE)
+    params = {key: str(ctx[key]).replace(" or ", " ou ") for key in SAFE_CTX_KEYS if key in ctx}
+    try:
+        return template.format_map(params)
+    except KeyError:
+        return FALLBACK_MESSAGE
+
+
+def _public_error(error: dict[str, Any]) -> dict[str, Any]:
+    """Validation error without `input`, `ctx` and `url`: never echo what the user typed (passwords).
+
+    Pydantic's own English messages are replaced too: some of them quote the input (uuid_parsing).
+    """
     return {
         "type": error["type"],
         "loc": [_safe_text(part) for part in error["loc"]],
-        "msg": _safe_text(message),
+        "msg": _safe_text(_message(error)),
     }
 
 

@@ -1,8 +1,9 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 
+from app.core import clock
 from app.core.clock import today
 from tests.helpers import make_settings
 
@@ -64,3 +65,13 @@ def test_day_changes_at_local_midnight(utc_time, expected):
 
 def test_today_with_timezone_ahead_of_utc():
     assert today(ZoneInfo("Asia/Tokyo"), datetime(2026, 5, 10, 15, 0, tzinfo=UTC)) == date(2026, 5, 11)
+
+
+def test_now_utc_is_aware_and_in_utc():
+    assert clock.now_utc().utcoffset() == timedelta(0)
+
+
+def test_today_without_now_reads_now_utc(monkeypatch):
+    monkeypatch.setattr(clock, "now_utc", lambda: datetime(2026, 5, 11, 2, 30, tzinfo=UTC))
+
+    assert today(SAO_PAULO) == date(2026, 5, 10)
