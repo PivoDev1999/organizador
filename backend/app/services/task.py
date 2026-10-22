@@ -58,8 +58,9 @@ def update_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskU
         if getattr(task, field) != value
     }
     if not changes:
-        # Nothing to write: no UPDATE, no commit, updated_at untouched. The lock goes away with the
-        # request's session (rollback on close).
+        # Nothing to write: commit just ends the transaction (no UPDATE, updated_at untouched) and
+        # releases the row lock now, not after the response has been sent.
+        db.commit()
         return task
 
     if "status" in changes:

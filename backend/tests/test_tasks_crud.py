@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy import event
 
 from app.core import clock
 from app.models import Task
@@ -268,21 +268,24 @@ def test_patch_validation(client, ana, create_task, payload):
 
 
 @pytest.mark.parametrize("payload", [{}, {"title": "Igual", "priority": "medium"}], ids=["empty", "same"])
-def test_patch_without_changes_returns_task_and_does_not_commit(
-    client, ana, create_task, monkeypatch, payload
-):
+def test_patch_without_changes_returns_task_and_writes_nothing(client, ana, create_task, db_session, payload):
     user, headers = ana
     task = create_task(user, "Igual")
     before = client.get(task_url(task.id), headers=headers).json()
-    commits = []
-    original_commit = Session.commit
-    monkeypatch.setattr(Session, "commit", lambda self: commits.append(1) or original_commit(self))
+    statements = []
 
-    response = client.patch(task_url(task.id), json=payload, headers=headers)
+    def record(conn, cursor, statement, *args):
+        statements.append(statement)
+
+    event.listen(db_session.bind, "before_cursor_execute", record)
+    try:
+        response = client.patch(task_url(task.id), json=payload, headers=headers)
+    finally:
+        event.remove(db_session.bind, "before_cursor_execute", record)
 
     assert response.status_code == 200
-    assert response.json() == before
-    assert commits == []
+    assert response.json() == before  # same updated_at
+    assert not [sql for sql in statements if sql.lstrip().upper().startswith("UPDATE")]
 
 
 def test_patch_task_of_another_user_is_not_found_and_unchanged(client, ana, bia, create_task):

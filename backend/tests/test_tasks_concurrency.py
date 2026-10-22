@@ -9,7 +9,7 @@ import uuid
 from collections.abc import Callable, Iterator
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, inspect, text
 
 from app.core import clock
 from app.core.database import SessionLocal
@@ -110,3 +110,27 @@ def test_writer_after_concurrent_delete_gets_not_found(committed_task, second):
 
     assert outcome["waited"]
     assert isinstance(outcome.get("error"), task_service.TaskNotFound), repr(outcome)
+
+
+def test_update_leaves_nothing_to_reload_after_commit(committed_task):
+    """updated_at comes back with RETURNING, so serializing never re-reads a row deleted meanwhile."""
+    user_id, task_id = committed_task
+
+    with SessionLocal() as db:
+        task = task_service.update_task(db, user_id, task_id, TaskUpdate(status="doing"))
+        assert not inspect(task).expired_attributes
+        with SessionLocal() as other:  # someone else deletes it right after our commit
+            other.execute(delete(Task).where(Task.id == task_id))
+            other.commit()
+        assert task.updated_at is not None  # no lazy SELECT, so no ObjectDeletedError
+
+
+def test_update_without_changes_releases_the_lock(committed_task):
+    user_id, task_id = committed_task
+
+    with SessionLocal() as db:
+        task_service.update_task(db, user_id, task_id, TaskUpdate(title="Regar as plantas"))
+        assert not db.in_transaction()  # committed: the FOR UPDATE lock is gone before the response
+        with SessionLocal() as other:
+            other.execute(text("SET LOCAL lock_timeout = '1s'"))
+            task_service.delete_task(other, user_id, task_id)  # would time out if still locked
