@@ -4,13 +4,21 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.core.errors import ConflictError, DomainError, ForbiddenError, NotFoundError, UnauthorizedError
+from app.core.errors import (
+    ConflictError,
+    DomainError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+)
 
 STATUS_BY_ERROR: dict[type[DomainError], int] = {
     NotFoundError: status.HTTP_404_NOT_FOUND,
     ConflictError: status.HTTP_409_CONFLICT,
     ForbiddenError: status.HTTP_403_FORBIDDEN,
     UnauthorizedError: status.HTTP_401_UNAUTHORIZED,
+    ValidationError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 
 
@@ -24,6 +32,10 @@ def _status_for(exc: DomainError) -> int:
 async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     status_code = _status_for(exc)
     headers = {"WWW-Authenticate": "Bearer"} if status_code == status.HTTP_401_UNAUTHORIZED else None
+    if isinstance(exc, ValidationError):
+        # Same shape as Pydantic's 422, so clients handle every validation error the same way.
+        body = [{"type": "value_error", "loc": ["body"], "msg": exc.detail}]
+        return JSONResponse({"detail": body}, status_code=status_code)
     return JSONResponse({"detail": exc.detail}, status_code=status_code, headers=headers)
 
 

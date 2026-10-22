@@ -40,6 +40,13 @@ Diferenças práticas:
 - Python 3.12 com `venv` (no Ubuntu/Debian: `sudo apt install python3.12-venv`)
 - `openssl` (para gerar os segredos)
 
+## Requisito do PostgreSQL: ICU
+
+As listagens ordenadas por nome usam a collation `pt-BR-x-icu` ("agua, Água, banho, Faxina"), porque na
+imagem Alpine o locale padrão ordena por bytes. A imagem oficial `postgres` do `docker-compose.yml` já
+vem com ICU; um Postgres instalado de outra forma precisa ter suporte a ICU (o teste
+`tests/test_database_requirements.py` acusa se faltar).
+
 ## Como subir
 
 ```bash
@@ -111,6 +118,9 @@ no banco). Tabelas de dados têm `user_id` (FK para `users`, `ON DELETE CASCADE`
 As FKs entre módulos são compostas com o dono: por exemplo, `pet_events (pet_id, user_id)` referencia
 `pets (id, user_id)`. Assim o banco garante que um registro filho pertence ao mesmo usuário do pai. Nas
 FKs opcionais, `ON DELETE SET NULL (pet_id)` (PostgreSQL 15+) limpa só o vínculo e mantém o `user_id`.
+
+Rotinas mensais com `day_of_month` maior que o último dia do mês (29 a 31) caem no último dia: a do dia 31
+vale em 30/04 e em 28/02 (29/02 em ano bissexto).
 
 ```mermaid
 erDiagram

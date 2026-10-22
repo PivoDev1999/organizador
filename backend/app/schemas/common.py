@@ -1,6 +1,6 @@
 import re
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, time
 from typing import Annotated, Any, Self
 
 from pydantic import AfterValidator, BaseModel, BeforeValidator, Field
@@ -13,6 +13,7 @@ PAGE_MAX_LIMIT = 100
 PAGE_MAX_OFFSET = 2**31 - 1
 
 ISO_DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+ISO_TIME_PATTERN = re.compile(r"[0-9]{2}:[0-9]{2}(:[0-9]{2})?")
 
 # Valid UTF-8 (no lone surrogates). For text that never reaches the database, such as passwords.
 Utf8Str = Annotated[str, AfterValidator(check_utf8)]
@@ -49,6 +50,24 @@ def _parse_iso_date(value: Any) -> date:
 
 # Calendar date as a "YYYY-MM-DD" string (OpenAPI keeps `format: date`).
 IsoDate = Annotated[date, BeforeValidator(_parse_iso_date)]
+
+
+def _parse_iso_time(value: Any) -> time:
+    # Same strict spirit as IsoDate: only "HH:MM" or "HH:MM:SS" strings, a wall-clock time without
+    # timezone or fraction. Lax mode would also take numbers (seconds since midnight), datetimes and
+    # offsets such as "07:00Z". A naive `time` object is fine for Python callers.
+    if type(value) is time and value.tzinfo is None:
+        return value
+    if isinstance(value, str) and ISO_TIME_PATTERN.fullmatch(value):
+        try:
+            return time.fromisoformat(value)
+        except ValueError:
+            pass
+    raise ValueError("Informe um horário válido no formato HH:MM ou HH:MM:SS.")
+
+
+# Time of day as "HH:MM" or "HH:MM:SS" (OpenAPI keeps `format: time`).
+IsoTime = Annotated[time, BeforeValidator(_parse_iso_time)]
 
 
 class PageQuery(BaseModel):

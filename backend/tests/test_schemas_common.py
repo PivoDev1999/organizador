@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -13,6 +13,7 @@ from app.schemas.common import (
     DbText,
     Email,
     IsoDate,
+    IsoTime,
     NotNull,
     Page,
     PageQuery,
@@ -174,3 +175,41 @@ def test_page_of_reads_items_from_attributes():
     page = Page[Row].of(items, 7, PageQuery(limit=2, offset=4))
 
     assert page.model_dump() == {"items": [{"name": "a"}, {"name": "b"}], "total": 7, "limit": 2, "offset": 4}
+
+
+# --- IsoTime -----------------------------------------------------------------------------------
+
+
+class _TimeModel(BaseModel):
+    at: IsoTime | None = None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("07:30", time(7, 30)), ("23:59:59", time(23, 59, 59)), (time(6, 0), time(6, 0))],
+)
+def test_iso_time_accepts_hh_mm_and_hh_mm_ss(value, expected):
+    assert _TimeModel(at=value).at == expected
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "7:30",
+        "07:30Z",
+        "07:30-03:00",
+        "07:30:00.5",
+        "24:00",
+        "2026-10-21T07:30:00",
+        3600,
+        "3600",
+        datetime(2026, 10, 21, 7, 30),
+        time(7, 30, tzinfo=UTC),
+    ],
+)
+def test_iso_time_rejects_other_formats(value):
+    with pytest.raises(ValidationError) as exc_info:
+        _TimeModel(at=value)
+    assert exc_info.value.errors()[0]["msg"].endswith(
+        "Informe um horário válido no formato HH:MM ou HH:MM:SS."
+    )

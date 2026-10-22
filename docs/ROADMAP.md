@@ -28,10 +28,8 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 ## Fase 3 — Módulos (`/novo-modulo <nome>`)
 > Pendências herdadas da revisão da Fase 1:
 > - O `user_id` de registros filhos (`pet_events`, `routine_logs`, gastos de pet, itens de mercado ligados à despensa) vem sempre do usuário autenticado; o banco rejeita vínculo entre usuários (FK composta).
-> - Rotinas mensais com `day_of_month` 29–31: definir a regra para meses mais curtos (ex.: usar o último dia).
-> - Fuso horário (`TZ`) para cálculos de "hoje" nos services.
 > - Download de arquivos: o Garage só escuta em `127.0.0.1`, então a URL temporária precisa passar pelo proxy (ex.: `/s3`) ou o download vai via API (stream).
-- [ ] Rotina
+- [x] Rotina
 - [ ] Despensa
 - [ ] Mercado (com "gerar lista a partir da despensa")
 - [ ] Pets
