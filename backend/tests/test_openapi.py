@@ -68,3 +68,33 @@ def test_task_read_schema_does_not_expose_user_id(openapi):
 @pytest.mark.parametrize("schema", ["TaskCreate", "TaskUpdate"])
 def test_task_input_schemas_forbid_extra_fields(openapi, schema):
     assert openapi["components"]["schemas"][schema]["additionalProperties"] is False
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/api/routines", "get"),
+        ("/api/routines", "post"),
+        ("/api/routines/today", "get"),
+        ("/api/routines/{routine_id}", "get"),
+        ("/api/routines/{routine_id}", "patch"),
+        ("/api/routines/{routine_id}", "delete"),
+        ("/api/routines/{routine_id}/logs", "get"),
+        ("/api/routines/{routine_id}/logs", "post"),
+        ("/api/routines/{routine_id}/logs/{done_on}", "delete"),
+    ],
+)
+def test_routine_endpoints_require_bearer_auth_in_openapi(openapi, path, method):
+    assert openapi["paths"][path][method]["security"] == [{SCHEME: []}]
+
+
+def test_routine_logs_document_from_and_to_query_params(openapi):
+    params = {
+        p["name"]: p["in"] for p in openapi["paths"]["/api/routines/{routine_id}/logs"]["get"]["parameters"]
+    }
+
+    assert params == {"routine_id": "path", **dict.fromkeys(["from", "to", "limit", "offset"], "query")}
+
+
+def test_routine_read_schema_does_not_expose_user_id(openapi):
+    assert "user_id" not in openapi["components"]["schemas"]["RoutineRead"]["properties"]
