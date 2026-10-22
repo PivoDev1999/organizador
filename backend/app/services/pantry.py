@@ -111,6 +111,8 @@ def update_item(
 
 
 def delete_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
+    # Locks the pantry item, then (ON DELETE SET NULL) its shopping items: the P -> S lock order that
+    # every pantry/shopping service follows (see app.services.shopping).
     item = get_item(db, user_id, item_id, for_update=True)
     pantry_repo.delete(db, item)
     db.commit()
