@@ -7,7 +7,7 @@ from app.models.pantry import PantryItem
 from app.models.pet import Pet, PetEvent, PetEventType
 from app.models.routine import Routine, RoutineFrequency, RoutineLog
 from app.models.shopping import ShoppingItem
-from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.task import Task, TaskPriority, TaskSort, TaskStatus
 from app.models.user import User
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "ShoppingItem",
     "Task",
     "TaskPriority",
+    "TaskSort",
     "TaskStatus",
     "Transaction",
     "TransactionType",
