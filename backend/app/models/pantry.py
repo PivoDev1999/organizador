@@ -1,6 +1,7 @@
 import uuid
 from datetime import date
 from decimal import Decimal
+from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Numeric, String, UniqueConstraint
@@ -10,6 +11,19 @@ from app.models.base import Base, EntityMixin
 
 if TYPE_CHECKING:
     from app.models.shopping import ShoppingItem
+
+
+class PantrySort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    NAME = "name"
+    NAME_DESC = "-name"
+    EXPIRES_ON = "expires_on"
+    EXPIRES_ON_DESC = "-expires_on"
+    QUANTITY = "quantity"
+    QUANTITY_DESC = "-quantity"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
 
 
 class PantryItem(EntityMixin, Base):

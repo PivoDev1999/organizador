@@ -3,7 +3,7 @@
 from app.models.base import Base, EntityMixin
 from app.models.file import File, FileEntityType
 from app.models.finance import Budget, Transaction, TransactionType
-from app.models.pantry import PantryItem
+from app.models.pantry import PantryItem, PantrySort
 from app.models.pet import Pet, PetEvent, PetEventType
 from app.models.routine import Routine, RoutineFrequency, RoutineLog, RoutineSort
 from app.models.shopping import ShoppingItem
@@ -17,6 +17,7 @@ __all__ = [
     "File",
     "FileEntityType",
     "PantryItem",
+    "PantrySort",
     "Pet",
     "PetEvent",
     "PetEventType",
