@@ -178,6 +178,7 @@ def _pantry_items(uid: uuid.UUID, today: date) -> list[PantryItem]:
 
 def _shopping_items(uid: uuid.UUID, pantry: list[PantryItem], now: datetime) -> list[ShoppingItem]:
     rice, coffee, milk, dog_food = pantry[:4]
+    # estimated_price is per unit (per kg, per L...): the list total multiplies it by the quantity.
     return [
         ShoppingItem(
             user_id=uid,
@@ -185,7 +186,7 @@ def _shopping_items(uid: uuid.UUID, pantry: list[PantryItem], now: datetime) -> 
             quantity=Decimal("5"),
             unit="kg",
             category="Grãos",
-            estimated_price=Decimal("27.90"),
+            estimated_price=Decimal("5.58"),
             pantry_item=rice,
         ),
         ShoppingItem(
@@ -194,7 +195,7 @@ def _shopping_items(uid: uuid.UUID, pantry: list[PantryItem], now: datetime) -> 
             quantity=Decimal("0.5"),
             unit="kg",
             category="Bebidas",
-            estimated_price=Decimal("21.50"),
+            estimated_price=Decimal("43.00"),
             pantry_item=coffee,
         ),
         ShoppingItem(
@@ -203,7 +204,7 @@ def _shopping_items(uid: uuid.UUID, pantry: list[PantryItem], now: datetime) -> 
             quantity=Decimal("12"),
             unit="L",
             category="Laticínios",
-            estimated_price=Decimal("59.88"),
+            estimated_price=Decimal("4.99"),
             pantry_item=milk,
         ),
         ShoppingItem(
@@ -212,7 +213,7 @@ def _shopping_items(uid: uuid.UUID, pantry: list[PantryItem], now: datetime) -> 
             quantity=Decimal("10"),
             unit="kg",
             category="Pets",
-            estimated_price=Decimal("189.90"),
+            estimated_price=Decimal("18.99"),
             pantry_item=dog_food,
         ),
         ShoppingItem(user_id=uid, name="Pão francês", quantity=Decimal("10"), unit="un", category="Padaria"),
