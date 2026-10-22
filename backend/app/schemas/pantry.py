@@ -6,7 +6,16 @@ from typing import Annotated, Any, Self
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.models.pantry import PantrySort
-from app.schemas.common import DbText, IsoDate, NotNull, PageQuery, Quantity
+from app.schemas.common import (
+    DbText,
+    IsoDate,
+    NotNull,
+    PageQuery,
+    Quantity,
+    drop_blanks,
+    optional_text,
+    required_text,
+)
 
 # Column sizes of pantry_items.
 NAME_MAX_LENGTH = 200
@@ -18,36 +27,10 @@ EXPIRING_WITHIN_MAX = 365
 ALERTS_DEFAULT_EXPIRING_WITHIN = 7
 
 
-def _required_text(max_length: int, missing: str, too_long: str):
-    def _normalize(value: str) -> str:
-        value = value.strip()
-        if not value:
-            raise ValueError(missing)
-        if len(value) > max_length:
-            raise ValueError(too_long)
-        return value
-
-    return _normalize
-
-
-def _optional_text(max_length: int, too_long: str):
-    def _normalize(value: str) -> str | None:
-        value = value.strip()
-        if len(value) > max_length:
-            raise ValueError(too_long)
-        return value or None
-
-    return _normalize
-
-
-def _drop_blanks(values: list[str]) -> list[str]:
-    return [value for value in values if value]
-
-
 ItemName = Annotated[
     DbText,
     AfterValidator(
-        _required_text(
+        required_text(
             NAME_MAX_LENGTH, "Informe o nome.", f"O nome deve ter no máximo {NAME_MAX_LENGTH} caracteres."
         )
     ),
@@ -56,7 +39,7 @@ ItemName = Annotated[
 Category = Annotated[
     DbText,
     AfterValidator(
-        _required_text(
+        required_text(
             CATEGORY_MAX_LENGTH,
             "Informe a categoria.",
             f"A categoria deve ter no máximo {CATEGORY_MAX_LENGTH} caracteres.",
@@ -67,7 +50,7 @@ Category = Annotated[
 Unit = Annotated[
     DbText,
     AfterValidator(
-        _required_text(
+        required_text(
             UNIT_MAX_LENGTH,
             "Informe a unidade.",
             f"A unidade deve ter no máximo {UNIT_MAX_LENGTH} caracteres.",
@@ -79,20 +62,20 @@ Unit = Annotated[
 Location = Annotated[
     DbText,
     AfterValidator(
-        _optional_text(LOCATION_MAX_LENGTH, f"O local deve ter no máximo {LOCATION_MAX_LENGTH} caracteres.")
+        optional_text(LOCATION_MAX_LENGTH, f"O local deve ter no máximo {LOCATION_MAX_LENGTH} caracteres.")
     ),
 ]
 SearchText = Annotated[
     DbText,
     AfterValidator(
-        _optional_text(SEARCH_MAX_LENGTH, f"A busca deve ter no máximo {SEARCH_MAX_LENGTH} caracteres.")
+        optional_text(SEARCH_MAX_LENGTH, f"A busca deve ter no máximo {SEARCH_MAX_LENGTH} caracteres.")
     ),
 ]
 # Query filters compare with the stored (already stripped) values; a blank one means "no filter".
 CategoryFilter = Annotated[
     DbText,
     AfterValidator(
-        _optional_text(
+        optional_text(
             CATEGORY_MAX_LENGTH, f"A categoria deve ter no máximo {CATEGORY_MAX_LENGTH} caracteres."
         )
     ),
@@ -188,7 +171,7 @@ class PantryAlertsRead(BaseModel):
 class PantryQuery(PageQuery):
     """Query string of `GET /api/pantry`. Every filter is optional and they combine with AND."""
 
-    category: Annotated[list[CategoryFilter], AfterValidator(_drop_blanks)] = Field(
+    category: Annotated[list[CategoryFilter], AfterValidator(drop_blanks)] = Field(
         default=[], description="Uma ou mais categorias (repita o parâmetro); comparação exata."
     )
     location: Location | None = Field(default=None, description="Local exato, como Geladeira.")

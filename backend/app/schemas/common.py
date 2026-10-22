@@ -1,11 +1,11 @@
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date, time
 from decimal import Decimal
 from typing import Annotated, Any, Self
 
-from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, PlainSerializer
+from pydantic import AfterValidator, BaseModel, BeforeValidator, Field, PlainSerializer, WithJsonSchema
 
 from app.core.text import check_db_text, check_utf8, parse_email
 
@@ -23,6 +23,37 @@ Utf8Str = Annotated[str, AfterValidator(check_utf8)]
 DbText = Annotated[str, AfterValidator(check_db_text)]
 # Trimmed, lower-case and validated e-mail address.
 Email = Annotated[str, AfterValidator(parse_email)]
+
+
+def required_text(max_length: int, missing: str, too_long: str) -> Callable[[str], str]:
+    """AfterValidator body: strip, then require 1..max_length characters."""
+
+    def _normalize(value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError(missing)
+        if len(value) > max_length:
+            raise ValueError(too_long)
+        return value
+
+    return _normalize
+
+
+def optional_text(max_length: int, too_long: str) -> Callable[[str], str | None]:
+    """AfterValidator body: strip; blank becomes None; longer than max_length is an error."""
+
+    def _normalize(value: str) -> str | None:
+        value = value.strip()
+        if len(value) > max_length:
+            raise ValueError(too_long)
+        return value or None
+
+    return _normalize
+
+
+def drop_blanks(values: list[str | None]) -> list[str]:
+    """For repeated query params normalized by `optional_text`: blank ones mean "no filter"."""
+    return [value for value in values if value]
 
 
 def _reject_null(value: Any) -> Any:
@@ -106,9 +137,10 @@ DECIMAL_PATTERN = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 # Far beyond any NUMERIC(p, s) we use; caps the work of parsing absurd strings.
 DECIMAL_MAX_STRING_LENGTH = 40
 DECIMAL_MESSAGE = "Informe um número válido (ex.: 1.5)."
+MONEY_FLOAT_MESSAGE = 'Envie valores em dinheiro como texto (ex.: "12.90").'
 
 
-def _decimal_parser(places: int, max_digits: int):
+def _decimal_parser(places: int, max_digits: int, float_message: str | None = None):
     step = Decimal(1).scaleb(-places)  # 0.001 for 3 places
     largest = Decimal(10) ** (max_digits - places) - step  # 9999999.999 for NUMERIC(10, 3)
     largest_text = f"{largest:.{places}f}"
@@ -120,6 +152,8 @@ def _decimal_parser(places: int, max_digits: int):
         if isinstance(value, int):
             number = Decimal(value)
         elif isinstance(value, float):
+            if float_message is not None:
+                raise ValueError(float_message)
             # repr() is the shortest text that round-trips, so a JSON 0.1 becomes Decimal("0.1").
             number = Decimal(repr(value))
         elif isinstance(value, Decimal):
@@ -160,6 +194,8 @@ class _DecimalJsonSchema:
     places: int
     largest: Decimal
     description: str
+    # JSON type of the non-string input form: "number" (floats too) or "integer".
+    number_type: str = "number"
 
     def __get_pydantic_json_schema__(self, core_schema: Any, handler: Any) -> dict[str, Any]:
         generated = handler(core_schema)
@@ -167,14 +203,21 @@ class _DecimalJsonSchema:
         bounds.setdefault("maximum", float(self.largest))
         string_schema = {"type": "string", "format": "decimal", "pattern": f"^{DECIMAL_PATTERN.pattern}$"}
         if handler.mode == "validation":
-            schema = {"anyOf": [string_schema, {"type": "number"}]}
+            schema = {"anyOf": [string_schema, {"type": self.number_type}]}
         else:
             schema = {**string_schema, "examples": [f"{Decimal(1):.{self.places}f}"]}
         # Numeric bounds apply to the number form; for the string form they document the allowed range.
         return {**schema, **bounds, "description": self.description}
 
 
-def decimal_type(places: int, max_digits: int, description: str) -> Any:
+def decimal_type(
+    places: int,
+    max_digits: int,
+    description: str,
+    *,
+    allow_float: bool = True,
+    float_message: str = DECIMAL_MESSAGE,
+) -> Any:
     """Annotated `Decimal` for a `NUMERIC(max_digits, places)` column.
 
     Input: a decimal string ("1.5", "-2.25") or a JSON number; bool, NaN, Infinity, exponents and
@@ -183,15 +226,33 @@ def decimal_type(places: int, max_digits: int, description: str) -> Any:
     Sign rules go on the field: `Annotated[Quantity, Field(ge=0)]` (they also appear in the OpenAPI).
 
     A JSON number is already a float when it arrives, so precision beyond ~15 significant digits (or a
-    tiny value like 1e-400, which the JSON parser turns into 0) cannot be recovered: clients that need
-    exactness, money above all, should send strings.
+    tiny value like 1e-400, which the JSON parser turns into 0) cannot be recovered. With
+    `allow_float=False` only strings and integers are accepted: a float is a 422 with `float_message`
+    and the OpenAPI input schema lists `integer` instead of `number`.
     """
-    parse, largest = _decimal_parser(places, max_digits)
+    parse, largest = _decimal_parser(places, max_digits, None if allow_float else float_message)
     return Annotated[
         Decimal,
         BeforeValidator(parse),
         PlainSerializer(lambda value: f"{value:.{places}f}", return_type=str, when_used="json"),
-        _DecimalJsonSchema(places, largest, description),
+        _DecimalJsonSchema(places, largest, description, "number" if allow_float else "integer"),
+    ]
+
+
+def decimal_output_type(places: int, description: str) -> Any:
+    """Read-only `Decimal` without the column cap (computed totals): a fixed-places string in JSON."""
+    return Annotated[
+        Decimal,
+        PlainSerializer(lambda value: f"{value:.{places}f}", return_type=str, when_used="json"),
+        WithJsonSchema(
+            {
+                "type": "string",
+                "format": "decimal",
+                "pattern": f"^{DECIMAL_PATTERN.pattern}$",
+                "examples": [f"{Decimal(1):.{places}f}"],
+                "description": description,
+            }
+        ),
     ]
 
 
@@ -208,4 +269,13 @@ Quantity = decimal_type(QUANTITY_PLACES, QUANTITY_DIGITS, "Número decimal com a
 MONEY_PLACES, MONEY_DIGITS = 2, 12
 MONEY_MAX = decimal_max(MONEY_PLACES, MONEY_DIGITS)
 # Signed by design: every money field must state its sign rule, e.g. Annotated[Money, Field(gt=0)].
-Money = decimal_type(MONEY_PLACES, MONEY_DIGITS, "Valor em reais com até 2 casas, como texto.")
+# Floats are rejected: money must stay exact from the client on, so it travels as "12.90" (or 12).
+Money = decimal_type(
+    MONEY_PLACES,
+    MONEY_DIGITS,
+    "Valor em reais com até 2 casas, como texto.",
+    allow_float=False,
+    float_message=MONEY_FLOAT_MESSAGE,
+)
+# Sums of money (no column behind them, so no NUMERIC(12, 2) cap). Output only.
+MoneyTotal = decimal_output_type(MONEY_PLACES, "Total em reais com 2 casas, como texto.")
