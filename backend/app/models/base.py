@@ -24,6 +24,10 @@ class Base(DeclarativeBase):
 class EntityMixin:
     """UUID primary key plus created/updated timestamps, shared by every table."""
 
+    # Fetch server-generated values (updated_at from the trigger) with RETURNING in the same statement,
+    # instead of a lazy SELECT after commit that fails if the row was deleted meanwhile.
+    __mapper_args__ = {"eager_defaults": True}
+
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, server_default=func.gen_random_uuid(), sort_order=-100
     )

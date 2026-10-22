@@ -20,6 +20,17 @@ class TaskPriority(StrEnum):
     HIGH = "high"
 
 
+class TaskSort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    DUE_DATE = "due_date"
+    DUE_DATE_DESC = "-due_date"
+    PRIORITY = "priority"
+    PRIORITY_DESC = "-priority"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
+
+
 class Task(EntityMixin, Base):
     __tablename__ = "tasks"
 

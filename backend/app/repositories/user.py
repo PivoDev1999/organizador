@@ -1,11 +1,10 @@
 import uuid
 
 from sqlalchemy import func, select, update
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import User
-from app.repositories.errors import DuplicateError, constraint_name, is_unique_violation
+from app.repositories.errors import flush
 
 
 def get_by_id(db: Session, user_id: uuid.UUID) -> User | None:
@@ -28,12 +27,7 @@ def add(db: Session, user: User) -> User:
     The caller owns the transaction and must roll back after an error.
     """
     db.add(user)
-    try:
-        db.flush()
-    except IntegrityError as exc:
-        if is_unique_violation(exc):
-            raise DuplicateError(constraint_name(exc)) from exc
-        raise
+    flush(db)
     return user
 
 

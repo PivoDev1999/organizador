@@ -2,7 +2,7 @@
 name: code-reviewer
 description: Revisor de código. Use antes de cada commit ou pull request para revisar qualidade, segurança e aderência aos padrões do projeto. Somente leitura.
 tools: Read, Glob, Grep, Bash
-model: inherit
+model: sonnet
 color: red
 ---
 
