@@ -94,6 +94,43 @@ def get_for_user(
     return db.scalar(stmt)
 
 
+def exists_for_user(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> bool:
+    """Whether the item belongs to the user, holding a FOR KEY SHARE lock until commit.
+
+    For rows about to reference the item (shopping_items.pantry_item_id): the lock blocks a concurrent
+    delete, so the foreign key insert/update that follows cannot fail. Updates of the item still run.
+    """
+    stmt = (
+        select(PantryItem.id)
+        .where(PantryItem.id == item_id, PantryItem.user_id == user_id)
+        .with_for_update(read=True, key_share=True)  # FOR KEY SHARE (key_share alone is NO KEY UPDATE)
+    )
+    return db.scalar(stmt) is not None
+
+
+def lock_shopping_candidates(
+    db: Session, user_id: uuid.UUID, expired_before: date | None
+) -> list[PantryItem]:
+    """Low-stock items of the user (plus the expired ones when `expired_before` is set), locked FOR UPDATE.
+
+    Rows are locked in the order returned (name pt-BR, id), the same for every caller, so two
+    concurrent calls wait for each other instead of deadlocking. After waiting, Postgres re-checks the
+    conditions on the latest row version (an item restocked meanwhile drops out).
+    """
+    condition = low_stock_condition()
+    if expired_before is not None:
+        condition = condition | expired_condition(expired_before)
+    return list(
+        db.scalars(
+            select(PantryItem)
+            .where(PantryItem.user_id == user_id, condition)
+            .order_by(*_order_by(PantrySort.NAME))
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).all()
+    )
+
+
 def list_for_user(
     db: Session, user_id: uuid.UUID, filters: PantryFilters, sort: str, limit: int, offset: int
 ) -> tuple[list[PantryItem], int]:

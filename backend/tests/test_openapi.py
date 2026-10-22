@@ -137,3 +137,12 @@ def test_decimal_fields_keep_their_bounds_in_openapi(client, schema, field, boun
     prop = client.get("/api/openapi.json").json()["components"]["schemas"][schema]["properties"][field]
     assert bound.items() <= prop.items()
     assert prop["maximum"] == 9999999.999
+
+
+@pytest.mark.parametrize("schema", ["ShoppingItemCreate", "ShoppingItemUpdate"])
+def test_shopping_input_schemas_forbid_extra_fields_and_float_prices(openapi, schema):
+    component = openapi["components"]["schemas"][schema]
+    price = component["properties"]["estimated_price"]["anyOf"][0]
+
+    assert component["additionalProperties"] is False
+    assert [option["type"] for option in price["anyOf"]] == ["string", "integer"]

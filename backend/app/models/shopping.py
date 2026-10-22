@@ -1,12 +1,24 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from sqlalchemy import CheckConstraint, ForeignKey, ForeignKeyConstraint, Index, Numeric, String, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, EntityMixin
 from app.models.pantry import PantryItem
+
+
+class ShoppingSort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    CATEGORY = "category"  # category, then name
+    NAME = "name"
+    NAME_DESC = "-name"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
+    PURCHASED_AT_DESC = "-purchased_at"
 
 
 class ShoppingItem(EntityMixin, Base):

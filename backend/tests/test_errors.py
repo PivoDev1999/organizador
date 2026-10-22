@@ -1,6 +1,8 @@
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from psycopg.errors import DeadlockDetected, QueryCanceled, SerializationFailure
+from sqlalchemy.exc import OperationalError
 
 from app.api.errors import register_exception_handlers
 from app.core.errors import (
@@ -73,3 +75,25 @@ def test_only_401_sends_www_authenticate(errors_client, name):
     assert ("www-authenticate" in response.headers) == (name == "unauthorized")
     if name == "unauthorized":
         assert response.headers["WWW-Authenticate"] == "Bearer"
+
+
+@pytest.mark.parametrize(
+    ("error", "status_code"),
+    [(DeadlockDetected, 409), (SerializationFailure, 409), (QueryCanceled, 500)],
+)
+def test_only_lock_conflicts_from_the_database_become_409(error, status_code):
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/db")
+    def fail() -> None:
+        raise OperationalError("UPDATE ...", {}, error("detalhe interno do banco"))
+
+    response = TestClient(app, raise_server_exceptions=False).get("/db")
+
+    assert response.status_code == status_code
+    if status_code == 409:
+        assert response.json() == {
+            "detail": "A operação conflitou com outra alteração simultânea. Tente novamente."
+        }
+    assert "detalhe interno" not in response.text

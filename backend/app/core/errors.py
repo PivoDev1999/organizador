@@ -35,3 +35,10 @@ class ValidationError(DomainError):
     """
 
     detail = "Dados inválidos."
+
+
+class ConcurrentChangeError(ConflictError):
+    """Another transaction changed the same data at the same time (deadlock, serialization failure,
+    or a row that kept changing while a service tried to lock it). Retrying usually works."""
+
+    detail = "A operação conflitou com outra alteração simultânea. Tente novamente."

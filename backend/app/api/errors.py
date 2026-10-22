@@ -3,8 +3,10 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
 
 from app.core.errors import (
+    ConcurrentChangeError,
     ConflictError,
     DomainError,
     ForbiddenError,
@@ -37,6 +39,19 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         body = [{"type": "value_error", "loc": ["body"], "msg": exc.detail}]
         return JSONResponse({"detail": body}, status_code=status_code)
     return JSONResponse({"detail": exc.detail}, status_code=status_code, headers=headers)
+
+
+# deadlock_detected and serialization_failure: the database aborted this transaction to let a
+# concurrent one finish. Nothing was saved and retrying usually works, so it is a 409, not a 500.
+RETRYABLE_SQLSTATES = frozenset({"40P01", "40001"})
+
+
+async def operational_error_handler(request: Request, exc: OperationalError) -> JSONResponse:
+    """Safety net for lock conflicts the services did not prevent. Other OperationalErrors (database
+    down, timeouts) are re-raised and stay 500."""
+    if getattr(exc.orig, "sqlstate", None) not in RETRYABLE_SQLSTATES:
+        raise exc
+    return JSONResponse({"detail": ConcurrentChangeError.detail}, status_code=status.HTTP_409_CONFLICT)
 
 
 def _safe_text(value: Any) -> Any:
@@ -113,3 +128,4 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, domain_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
+    app.add_exception_handler(OperationalError, operational_error_handler)

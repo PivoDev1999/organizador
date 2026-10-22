@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 
 from app.api.errors import register_exception_handlers
-from app.api.routers import auth, health, pantry, routines, tasks
+from app.api.routers import auth, health, pantry, routines, shopping, tasks
 from app.core.config import Settings, get_settings
 from app.core.security import DEFAULT_BCRYPT_ROUNDS, dummy_password_hash
 
@@ -35,3 +35,4 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(tasks.router, prefix="/api")
 app.include_router(routines.router, prefix="/api")
 app.include_router(pantry.router, prefix="/api")
+app.include_router(shopping.router, prefix="/api")

@@ -241,7 +241,7 @@ class Amounts(BaseModel):
         ("quantity", str(QUANTITY_MAX), "9999999.999"),
         ("quantity", Decimal("0.250"), "0.250"),
         ("money", "10.5", "10.50"),
-        ("money", 0.1, "0.10"),
+        ("money", 12, "12.00"),
         ("money", str(MONEY_MAX), "9999999999.99"),
     ],
 )
@@ -258,7 +258,8 @@ def test_decimal_types_accept_strings_and_numbers_and_serialize_as_fixed_strings
         ("quantity", "1.0001", "Use no máximo 3 casas decimais."),
         ("money", "1.001", "Use no máximo 2 casas decimais."),
         ("quantity", "10000000", "O valor deve ser no máximo 9999999.999."),
-        ("money", 1e10, "O valor deve ser no máximo 9999999999.99."),
+        ("money", 10**10, "O valor deve ser no máximo 9999999999.99."),
+        *[("money", value, 'Envie valores em dinheiro como texto (ex.: "12.90").') for value in [0.1, 12.0]],
         ("quantity", "9" * 41, "Informe um número válido (ex.: 1.5)."),
         *[
             ("quantity", value, "Informe um número válido (ex.: 1.5).")
@@ -285,6 +286,12 @@ def test_decimal_types_reject_invalid_values(field, value, message):
         Amounts(**{field: value})
 
     assert [error["ctx"]["error"].args[0] for error in exc_info.value.errors()] == [message]
+
+
+def test_money_input_schema_lists_integer_instead_of_number():
+    money = Amounts.model_json_schema(mode="validation")["properties"]["money"]["anyOf"][0]
+
+    assert [option.get("type") for option in money["anyOf"]] == ["string", "integer"]
 
 
 def test_decimal_types_document_string_with_decimal_format():

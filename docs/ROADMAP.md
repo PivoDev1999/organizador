@@ -31,7 +31,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 > - Download de arquivos: o Garage só escuta em `127.0.0.1`, então a URL temporária precisa passar pelo proxy (ex.: `/s3`) ou o download vai via API (stream).
 - [x] Rotina
 - [x] Despensa
-- [ ] Mercado (com "gerar lista a partir da despensa")
+- [x] Mercado (com "gerar lista a partir da despensa")
 - [ ] Pets
 - [ ] Finanças (orçamento por categoria, contas a pagar)
 - [ ] Arquivos (upload/download com URL temporária no Garage, via API S3)
