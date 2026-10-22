@@ -25,6 +25,15 @@ class RoutineFrequency(StrEnum):
     MONTHLY = "monthly"
 
 
+class RoutineSort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    NAME = "name"
+    NAME_DESC = "-name"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
+
+
 # Each frequency uses exactly one way of saying "when": none, weekdays or a day of the month.
 # The explicit IS NOT NULL matters: cardinality(NULL) is NULL, and a NULL CHECK result passes.
 _SCHEDULE_CHECK = (
