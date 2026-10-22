@@ -65,6 +65,11 @@ CASES = [
     ("date_type", lambda: _errors(date, [SECRET]), "Informe uma data válida no formato AAAA-MM-DD."),
     ("uuid_parsing", lambda: _errors(uuid.UUID, SECRET), "Identificador inválido."),
     (
+        "greater_than",
+        lambda: _errors(Annotated[int, Field(gt=0)], -987),
+        "O valor deve ser maior que 0.",
+    ),
+    (
         "greater_than_equal",
         lambda: _errors(Annotated[int, Field(ge=1)], -987),
         "O valor deve ser maior ou igual a 1.",

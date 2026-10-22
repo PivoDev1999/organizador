@@ -98,3 +98,42 @@ def test_routine_logs_document_from_and_to_query_params(openapi):
 
 def test_routine_read_schema_does_not_expose_user_id(openapi):
     assert "user_id" not in openapi["components"]["schemas"]["RoutineRead"]["properties"]
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/api/pantry", "get"),
+        ("/api/pantry", "post"),
+        ("/api/pantry/alerts", "get"),
+        ("/api/pantry/categories", "get"),
+        ("/api/pantry/locations", "get"),
+        ("/api/pantry/{item_id}", "get"),
+        ("/api/pantry/{item_id}", "patch"),
+        ("/api/pantry/{item_id}", "delete"),
+        ("/api/pantry/{item_id}/consume", "post"),
+        ("/api/pantry/{item_id}/restock", "post"),
+    ],
+)
+def test_pantry_endpoints_require_bearer_auth_in_openapi(openapi, path, method):
+    assert openapi["paths"][path][method]["security"] == [{SCHEME: []}]
+
+
+def test_pantry_read_exposes_quantities_as_decimal_strings_and_no_user_id(openapi):
+    properties = openapi["components"]["schemas"]["PantryItemRead"]["properties"]
+
+    assert "user_id" not in properties
+    assert (properties["quantity"]["type"], properties["quantity"]["format"]) == ("string", "decimal")
+
+
+@pytest.mark.parametrize(
+    ("schema", "field", "bound"),
+    [
+        ("StockChange", "amount", {"exclusiveMinimum": 0}),
+        ("PantryItemCreate", "quantity", {"minimum": 0}),
+    ],
+)
+def test_decimal_fields_keep_their_bounds_in_openapi(client, schema, field, bound):
+    prop = client.get("/api/openapi.json").json()["components"]["schemas"][schema]["properties"][field]
+    assert bound.items() <= prop.items()
+    assert prop["maximum"] == 9999999.999

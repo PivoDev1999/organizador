@@ -1,4 +1,6 @@
+import json
 from datetime import UTC, date, datetime, time
+from decimal import Decimal
 from types import SimpleNamespace
 from typing import Annotated
 
@@ -7,16 +9,20 @@ from pydantic import BaseModel, ValidationError
 
 from app.core.text import normalize_email, parse_email
 from app.schemas.common import (
+    MONEY_MAX,
     PAGE_DEFAULT_LIMIT,
     PAGE_MAX_LIMIT,
     PAGE_MAX_OFFSET,
+    QUANTITY_MAX,
     DbText,
     Email,
     IsoDate,
     IsoTime,
+    Money,
     NotNull,
     Page,
     PageQuery,
+    Quantity,
     Utf8Str,
 )
 
@@ -212,4 +218,85 @@ def test_iso_time_rejects_other_formats(value):
         _TimeModel(at=value)
     assert exc_info.value.errors()[0]["msg"].endswith(
         "Informe um horário válido no formato HH:MM ou HH:MM:SS."
+    )
+
+
+# --- Quantity and Money (exact decimals) -------------------------------------------------------
+
+
+class Amounts(BaseModel):
+    quantity: Quantity | None = None
+    money: Money | None = None
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "json_value"),
+    [
+        ("quantity", "1.5", "1.500"),
+        ("quantity", 1.5, "1.500"),
+        ("quantity", 2, "2.000"),
+        ("quantity", "0.1", "0.100"),
+        ("quantity", "1.5000", "1.500"),
+        ("quantity", "-0", "0.000"),
+        ("quantity", str(QUANTITY_MAX), "9999999.999"),
+        ("quantity", Decimal("0.250"), "0.250"),
+        ("money", "10.5", "10.50"),
+        ("money", 0.1, "0.10"),
+        ("money", str(MONEY_MAX), "9999999999.99"),
+    ],
+)
+def test_decimal_types_accept_strings_and_numbers_and_serialize_as_fixed_strings(field, value, json_value):
+    model = Amounts(**{field: value})
+
+    assert isinstance(getattr(model, field), Decimal)  # Python keeps exact Decimals
+    assert json.loads(model.model_dump_json())[field] == json_value
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("quantity", "1.0001", "Use no máximo 3 casas decimais."),
+        ("money", "1.001", "Use no máximo 2 casas decimais."),
+        ("quantity", "10000000", "O valor deve ser no máximo 9999999.999."),
+        ("money", 1e10, "O valor deve ser no máximo 9999999999.99."),
+        ("quantity", "9" * 41, "Informe um número válido (ex.: 1.5)."),
+        *[
+            ("quantity", value, "Informe um número válido (ex.: 1.5).")
+            for value in [
+                "NaN",
+                "Infinity",
+                "1e3",
+                "1E-2",
+                "+1",
+                ".5",
+                "1.",
+                " 1",
+                "1,5",
+                "",
+                True,
+                float("nan"),
+                [1],
+            ]
+        ],
+    ],
+)
+def test_decimal_types_reject_invalid_values(field, value, message):
+    with pytest.raises(ValidationError) as exc_info:
+        Amounts(**{field: value})
+
+    assert [error["ctx"]["error"].args[0] for error in exc_info.value.errors()] == [message]
+
+
+def test_decimal_types_document_string_with_decimal_format():
+    validation = Amounts.model_json_schema(mode="validation")["properties"]["quantity"]["anyOf"][0]
+    serialization = Amounts.model_json_schema(mode="serialization")["properties"]["money"]["anyOf"][0]
+
+    assert validation["anyOf"] == [
+        {"type": "string", "format": "decimal", "pattern": r"^-?[0-9]+(\.[0-9]+)?$"},
+        {"type": "number"},
+    ]
+    assert (serialization["type"], serialization["format"], serialization["examples"]) == (
+        "string",
+        "decimal",
+        ["1.00"],
     )

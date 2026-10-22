@@ -50,7 +50,7 @@ OBJECT_MESSAGE = "Informe um objeto JSON."
 FALLBACK_MESSAGE = "Valor inválido."
 
 # Portuguese message per Pydantic error type. Placeholders come only from the error `ctx` keys
-# ge, le, min_length, max_length and expected, which describe the schema, never the received value.
+# gt, ge, le, min_length, max_length and expected, which describe the schema, never the received value.
 MESSAGES_BY_TYPE: dict[str, str] = {
     "missing": "Campo obrigatório.",
     "string_type": "Informe um texto.",
@@ -64,6 +64,7 @@ MESSAGES_BY_TYPE: dict[str, str] = {
     "date_from_datetime_parsing": DATE_MESSAGE,
     "date_type": DATE_MESSAGE,
     "uuid_parsing": "Identificador inválido.",
+    "greater_than": "O valor deve ser maior que {gt}.",
     "greater_than_equal": "O valor deve ser maior ou igual a {ge}.",
     "less_than_equal": "O valor deve ser menor ou igual a {le}.",
     "string_too_long": "O texto deve ter no máximo {max_length} caracteres.",
@@ -73,7 +74,7 @@ MESSAGES_BY_TYPE: dict[str, str] = {
     "dict_type": OBJECT_MESSAGE,
     "list_type": "Informe uma lista.",
 }
-SAFE_CTX_KEYS = ("ge", "le", "min_length", "max_length", "expected")
+SAFE_CTX_KEYS = ("gt", "ge", "le", "min_length", "max_length", "expected")
 
 
 def _message(error: dict[str, Any]) -> str:
