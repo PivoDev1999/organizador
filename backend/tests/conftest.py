@@ -21,6 +21,7 @@ os.environ["BCRYPT_ROUNDS"] = "4"
 get_settings.cache_clear()
 
 from collections.abc import Callable, Iterator  # noqa: E402
+from datetime import UTC, datetime  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from alembic.config import Config  # noqa: E402
@@ -32,8 +33,8 @@ from app.core.config import Settings  # noqa: E402
 from app.core.database import SESSION_OPTIONS, engine, get_db  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import User  # noqa: E402
-from tests.helpers import TEST_PASSWORD, make_settings  # noqa: E402
+from app.models import Task, User  # noqa: E402
+from tests.helpers import TEST_PASSWORD, auth_header, login, make_settings  # noqa: E402
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -120,5 +121,37 @@ def create_user(db_session: Session) -> Callable[..., User]:
         # Committed (to a savepoint) so it survives the per-request rollback of the `client` fixture.
         db_session.commit()
         return user
+
+    return _create
+
+
+@pytest.fixture
+def authenticate(client: TestClient, create_user: Callable[..., User]) -> Callable[..., tuple[User, dict]]:
+    """Create a user and log in through the API: `user, headers = authenticate("bia@example.test")`."""
+
+    def _authenticate(email: str = "ana@example.test", **fields) -> tuple[User, dict[str, str]]:
+        user = create_user(email=email, **fields)
+        response = login(client, email, TEST_PASSWORD)
+        assert response.status_code == 200, response.text
+        return user, auth_header(response.json()["access_token"])
+
+    return _authenticate
+
+
+@pytest.fixture
+def create_task(db_session: Session) -> Callable[..., Task]:
+    """Insert a task straight into the database (committed to the test savepoint).
+
+    Handy for fields the API does not accept, such as `created_at`: inside one test every row would
+    otherwise get the same now() (it is the transaction start time).
+    """
+
+    def _create(user: User, title: str = "Tarefa", **fields) -> Task:
+        if fields.get("status") == "done":
+            fields.setdefault("completed_at", fields.get("created_at") or datetime.now(UTC))
+        task = Task(user_id=user.id, title=title, **fields)
+        db_session.add(task)
+        db_session.commit()
+        return task
 
     return _create

@@ -37,3 +37,34 @@ def test_user_read_schema_does_not_expose_password(openapi):
 
     assert "password" not in properties
     assert "password_hash" not in properties
+
+
+@pytest.mark.parametrize(
+    ("path", "method"),
+    [
+        ("/api/tasks", "get"),
+        ("/api/tasks", "post"),
+        ("/api/tasks/{task_id}", "get"),
+        ("/api/tasks/{task_id}", "patch"),
+        ("/api/tasks/{task_id}", "delete"),
+    ],
+)
+def test_task_endpoints_require_bearer_auth_in_openapi(openapi, path, method):
+    assert openapi["paths"][path][method]["security"] == [{SCHEME: []}]
+
+
+def test_task_list_documents_each_filter_as_query_param(openapi):
+    params = {p["name"]: p["in"] for p in openapi["paths"]["/api/tasks"]["get"]["parameters"]}
+
+    assert params == dict.fromkeys(
+        ["status", "priority", "due_from", "due_to", "overdue", "q", "sort", "limit", "offset"], "query"
+    )
+
+
+def test_task_read_schema_does_not_expose_user_id(openapi):
+    assert "user_id" not in openapi["components"]["schemas"]["TaskRead"]["properties"]
+
+
+@pytest.mark.parametrize("schema", ["TaskCreate", "TaskUpdate"])
+def test_task_input_schemas_forbid_extra_fields(openapi, schema):
+    assert openapi["components"]["schemas"][schema]["additionalProperties"] is False
