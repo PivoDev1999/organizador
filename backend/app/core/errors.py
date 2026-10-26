@@ -25,6 +25,16 @@ class UnauthorizedError(DomainError):
     detail = "Não autenticado."
 
 
+class PayloadTooLargeError(DomainError):
+    detail = "O conteúdo enviado é grande demais."
+
+
+class ServiceUnavailableError(DomainError):
+    """A service the API depends on (the file storage) failed or is unreachable. Details go to the log."""
+
+    detail = "Serviço temporariamente indisponível. Tente novamente."
+
+
 class ValidationError(DomainError):
     """Business-rule validation that needs state the schema does not have (the stored row, "today").
 

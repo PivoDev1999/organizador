@@ -11,6 +11,8 @@ from app.core.errors import (
     DomainError,
     ForbiddenError,
     NotFoundError,
+    PayloadTooLargeError,
+    ServiceUnavailableError,
     UnauthorizedError,
     ValidationError,
 )
@@ -20,6 +22,8 @@ STATUS_BY_ERROR: dict[type[DomainError], int] = {
     ConflictError: status.HTTP_409_CONFLICT,
     ForbiddenError: status.HTTP_403_FORBIDDEN,
     UnauthorizedError: status.HTTP_401_UNAUTHORIZED,
+    PayloadTooLargeError: status.HTTP_413_CONTENT_TOO_LARGE,
+    ServiceUnavailableError: status.HTTP_503_SERVICE_UNAVAILABLE,
     ValidationError: status.HTTP_422_UNPROCESSABLE_CONTENT,
 }
 

@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     s3_access_key_id: str
     s3_secret_access_key: str
     s3_bucket: str
+    # Bucket of the storage integration tests (created by garage-init with the same key).
+    s3_test_bucket: str = "organizador-test"
+    # Upload limit per file, in MiB (1 MB here = 1024 * 1024 bytes).
+    max_upload_mb: int = Field(default=20, ge=1, le=1024)
 
     seed_user_password: str | None = None
 
@@ -69,6 +73,10 @@ class Settings(BaseSettings):
     @property
     def timezone(self) -> ZoneInfo:
         return ZoneInfo(self.app_timezone)
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
 
     @property
     def database_url(self) -> URL:

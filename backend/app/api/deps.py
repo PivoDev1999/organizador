@@ -5,10 +5,13 @@ from fastapi.security import OAuth2PasswordBearer
 
 from app.core.config import Settings, get_settings
 from app.core.database import DbSession
+from app.core.storage import Storage, get_storage
 from app.models import User
 from app.services import auth as auth_service
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+# File storage (Garage). Tests override `get_storage` with an in-memory fake.
+StorageDep = Annotated[Storage, Depends(get_storage)]
 
 # auto_error=False so a missing token gets the same Portuguese 401 as an invalid one.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
