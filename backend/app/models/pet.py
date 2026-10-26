@@ -30,6 +30,15 @@ class PetEventType(StrEnum):
     OTHER = "other"
 
 
+class PetSort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    NAME = "name"
+    NAME_DESC = "-name"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
+
+
 class Pet(EntityMixin, Base):
     __tablename__ = "pets"
 
