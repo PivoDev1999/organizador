@@ -23,6 +23,17 @@ class TransactionType(StrEnum):
     EXPENSE = "expense"
 
 
+class TransactionSort(StrEnum):
+    """Accepted list orderings; a leading "-" means descending."""
+
+    DUE_DATE = "due_date"
+    DUE_DATE_DESC = "-due_date"
+    AMOUNT = "amount"
+    AMOUNT_DESC = "-amount"
+    CREATED_AT = "created_at"
+    CREATED_AT_DESC = "-created_at"
+
+
 class Transaction(EntityMixin, Base):
     __tablename__ = "transactions"
 

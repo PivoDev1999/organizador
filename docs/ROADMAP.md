@@ -33,8 +33,10 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Despensa
 - [x] Mercado (com "gerar lista a partir da despensa")
 - [x] Pets (eventos e lembretes de próximas datas)
-- [ ] Finanças (orçamento por categoria, contas a pagar)
+- [x] Finanças (orçamento por categoria, contas a pagar)
   - Ao gravar ou alterar `transactions.pet_id`, chamar `pet_repo.exists_for_user` (KEY SHARE no pet) **antes** de travar a transação, para seguir a ordem pet → transação do DELETE do pet (que faz SET NULL nas transações); senão há deadlock
+  - Regime de competência: o mês de uma transação é o do `due_date`, paga ou não (resumo mensal e `spent` do orçamento)
+  - Categoria de orçamento é única por mês sem diferenciar maiúsculas; hoje garantido por `pg_advisory_xact_lock` por (usuário, mês). Melhoria estrutural futura (exige migration): índice único em `(user_id, lower(category COLLATE "pt-BR-x-icu"), month)`, e um índice funcional equivalente em `transactions` para o filtro por categoria
 - [ ] Arquivos (upload/download com URL temporária no Garage, via API S3)
   - Ao apagar uma entidade (tarefa, pet etc.), apagar também os anexos em `files` e no Garage (a relação polimórfica não tem FK)
 - [ ] Painel (endpoint que agrega o resumo do dia)

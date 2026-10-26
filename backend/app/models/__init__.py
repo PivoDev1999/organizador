@@ -2,7 +2,7 @@
 
 from app.models.base import Base, EntityMixin
 from app.models.file import File, FileEntityType
-from app.models.finance import Budget, Transaction, TransactionType
+from app.models.finance import Budget, Transaction, TransactionSort, TransactionType
 from app.models.pantry import PantryItem, PantrySort
 from app.models.pet import Pet, PetEvent, PetEventType, PetSort
 from app.models.routine import Routine, RoutineFrequency, RoutineLog, RoutineSort
@@ -33,6 +33,7 @@ __all__ = [
     "TaskSort",
     "TaskStatus",
     "Transaction",
+    "TransactionSort",
     "TransactionType",
     "User",
 ]

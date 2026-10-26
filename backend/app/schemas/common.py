@@ -16,6 +16,8 @@ PAGE_MAX_OFFSET = 2**31 - 1
 
 ISO_DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 ISO_TIME_PATTERN = re.compile(r"[0-9]{2}:[0-9]{2}(:[0-9]{2})?")
+YEAR_MONTH_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}")
+YEAR_MONTH_MESSAGE = "Informe um mês válido no formato AAAA-MM."
 
 # Valid UTF-8 (no lone surrogates). For text that never reaches the database, such as passwords.
 Utf8Str = Annotated[str, AfterValidator(check_utf8)]
@@ -83,6 +85,33 @@ def _parse_iso_date(value: Any) -> date:
 
 # Calendar date as a "YYYY-MM-DD" string (OpenAPI keeps `format: date`).
 IsoDate = Annotated[date, BeforeValidator(_parse_iso_date)]
+
+
+def _parse_year_month(value: Any) -> date:
+    # Only "YYYY-MM" strings (month 01-12, year 0001-9999), or a `date` already on day 1 (Python
+    # callers). Lax mode would accept full dates or numbers; a month never carries a day here.
+    if type(value) is date and value.day == 1:
+        return value
+    if isinstance(value, str) and YEAR_MONTH_PATTERN.fullmatch(value):
+        year, month = int(value[:4]), int(value[5:])
+        if year >= 1 and 1 <= month <= 12:
+            return date(year, month, 1)
+    raise ValueError(YEAR_MONTH_MESSAGE)
+
+
+def format_year_month(value: date) -> str:
+    """ "YYYY-MM", zero-padded (strftime's %Y does not pad years below 1000 on every platform)."""
+    return f"{value.year:04d}-{value.month:02d}"
+
+
+# Calendar month as "YYYY-MM". In Python it is the `date` of day 1 (what `budgets.month` stores); in
+# JSON it goes back out as "YYYY-MM".
+YearMonth = Annotated[
+    date,
+    BeforeValidator(_parse_year_month),
+    PlainSerializer(format_year_month, return_type=str, when_used="json"),
+    WithJsonSchema({"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$", "examples": ["2026-10"]}),
+]
 
 
 def _parse_iso_time(value: Any) -> time:
