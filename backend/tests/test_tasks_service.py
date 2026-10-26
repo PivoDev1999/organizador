@@ -9,6 +9,7 @@ from app.core import clock
 from app.models import Task
 from app.schemas.task import TaskCreate, TaskQuery, TaskUpdate
 from app.services import task as task_service
+from tests.fakes import FakeStorage
 from tests.helpers import make_settings
 
 T0 = datetime(2026, 10, 1, 9, 0, tzinfo=UTC)
@@ -180,7 +181,7 @@ def test_other_users_task_raises_not_found(db_session, ana, bia, create_task, op
     call = {
         "get": lambda: task_service.get_task(db_session, ana.id, task.id),
         "update": lambda: task_service.update_task(db_session, ana.id, task.id, TaskUpdate(title="Invadida")),
-        "delete": lambda: task_service.delete_task(db_session, ana.id, task.id),
+        "delete": lambda: task_service.delete_task(db_session, FakeStorage(), ana.id, task.id),
     }[operation]
 
     with pytest.raises(task_service.TaskNotFound) as exc_info:
@@ -197,7 +198,7 @@ def test_missing_task_raises_not_found(db_session, ana, operation):
     call = {
         "get": lambda: task_service.get_task(db_session, ana.id, missing),
         "update": lambda: task_service.update_task(db_session, ana.id, missing, TaskUpdate()),
-        "delete": lambda: task_service.delete_task(db_session, ana.id, missing),
+        "delete": lambda: task_service.delete_task(db_session, FakeStorage(), ana.id, missing),
     }[operation]
 
     with pytest.raises(task_service.TaskNotFound):
@@ -208,7 +209,7 @@ def test_delete_removes_only_the_given_task(db_session, ana, create_task):
     kept = create_task(ana, "Fica")
     gone = create_task(ana, "Sai")
 
-    task_service.delete_task(db_session, ana.id, gone.id)
+    task_service.delete_task(db_session, FakeStorage(), ana.id, gone.id)
 
     db_session.expire_all()
     assert db_session.get(Task, gone.id) is None
