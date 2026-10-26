@@ -28,7 +28,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 ## Fase 3 — Módulos (`/novo-modulo <nome>`)
 > Pendências herdadas da revisão da Fase 1:
 > - O `user_id` de registros filhos (`pet_events`, `routine_logs`, gastos de pet, itens de mercado ligados à despensa) vem sempre do usuário autenticado; o banco rejeita vínculo entre usuários (FK composta).
-> - Download de arquivos: o Garage só escuta em `127.0.0.1`, então a URL temporária precisa passar pelo proxy (ex.: `/s3`) ou o download vai via API (stream).
+> - Download de arquivos: decidido o download pela própria API, em streaming (`GET /api/files/{id}/download`). O Garage continua só em `127.0.0.1`, sem URL pré-assinada nem rota `/s3` no proxy.
 - [x] Rotina
 - [x] Despensa
 - [x] Mercado (com "gerar lista a partir da despensa")
@@ -37,18 +37,22 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
   - Ao gravar ou alterar `transactions.pet_id`, chamar `pet_repo.exists_for_user` (KEY SHARE no pet) **antes** de travar a transação, para seguir a ordem pet → transação do DELETE do pet (que faz SET NULL nas transações); senão há deadlock
   - Regime de competência: o mês de uma transação é o do `due_date`, paga ou não (resumo mensal e `spent` do orçamento)
   - Categoria de orçamento é única por mês sem diferenciar maiúsculas; hoje garantido por `pg_advisory_xact_lock` por (usuário, mês). Melhoria estrutural futura (exige migration): índice único em `(user_id, lower(category COLLATE "pt-BR-x-icu"), month)`, e um índice funcional equivalente em `transactions` para o filtro por categoria
-- [ ] Arquivos (upload/download com URL temporária no Garage, via API S3)
-  - Ao apagar uma entidade (tarefa, pet etc.), apagar também os anexos em `files` e no Garage (a relação polimórfica não tem FK)
+- [x] Arquivos (upload e download em streaming pela API, Garage via API S3; limpeza de órfãos com `python -m scripts.cleanup_orphans`)
+  - [x] Ao apagar uma entidade (tarefa, pet etc.), apagar também os anexos em `files` e no Garage (a relação polimórfica não tem FK)
+  - Melhoria futura: cota de armazenamento por usuário (soma de `files.size_bytes`), checada no upload
 - [ ] Painel (endpoint que agrega o resumo do dia)
 
 ## Fase 4 — Frontend
 - [ ] Projeto React + TS + Vite + Tailwind, login
 - [ ] Uma tela por módulo
+  - Verificar PDF inline no Chrome com CSP sandbox; se o visualizador for bloqueado, servir PDF sem `sandbox` (mantendo `default-src 'none'`) ou abrir como blob no frontend
 - [ ] Painel com gráficos
 
 ## Fase 5 — Qualidade e instalação na rede local
 - [ ] GitHub Actions (lint + testes + build em todo PR)
 - [ ] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx/Caddy) na porta 80
+  - Limitar também no proxy o corpo do `POST /api/files` (ex.: `client_max_body_size` um pouco acima de `MAX_UPLOAD_MB`), como segunda barreira ao limite que a API já aplica
+- [ ] Servir os assets do Swagger (`/api/docs`) localmente: hoje vêm de CDN e a página não funciona sem internet
 - [ ] Limite de tentativas no `POST /api/auth/login` no proxy (ex.: `limit_req` do Nginx / `rate_limit` do Caddy)
 - [ ] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
 - [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
