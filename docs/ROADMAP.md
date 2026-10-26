@@ -32,8 +32,9 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Rotina
 - [x] Despensa
 - [x] Mercado (com "gerar lista a partir da despensa")
-- [ ] Pets
+- [x] Pets (eventos e lembretes de próximas datas)
 - [ ] Finanças (orçamento por categoria, contas a pagar)
+  - Ao gravar ou alterar `transactions.pet_id`, chamar `pet_repo.exists_for_user` (KEY SHARE no pet) **antes** de travar a transação, para seguir a ordem pet → transação do DELETE do pet (que faz SET NULL nas transações); senão há deadlock
 - [ ] Arquivos (upload/download com URL temporária no Garage, via API S3)
   - Ao apagar uma entidade (tarefa, pet etc.), apagar também os anexos em `files` e no Garage (a relação polimórfica não tem FK)
 - [ ] Painel (endpoint que agrega o resumo do dia)
