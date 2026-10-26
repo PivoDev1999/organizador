@@ -24,6 +24,7 @@ from app.schemas.common import (
     PageQuery,
     Quantity,
     Utf8Str,
+    YearMonth,
 )
 
 
@@ -307,3 +308,20 @@ def test_decimal_types_document_string_with_decimal_format():
         "decimal",
         ["1.00"],
     )
+
+
+class MonthModel(BaseModel):
+    month: YearMonth
+
+
+def test_year_month_parses_to_day_one_and_serializes_back():
+    model = MonthModel(month="0999-12")
+
+    assert model.month == date(999, 12, 1)
+    assert model.model_dump_json() == '{"month":"0999-12"}'
+
+
+@pytest.mark.parametrize("value", ["0000-01", "2026-00", 202610])
+def test_year_month_rejects_invalid_months(value):
+    with pytest.raises(ValidationError, match="Informe um mês válido no formato AAAA-MM."):
+        MonthModel(month=value)
