@@ -1,4 +1,4 @@
-"""Bootstrap Garage through its Admin API v2: node layout, S3 key and bucket.
+"""Bootstrap Garage through its Admin API v2: node layout, S3 key, the app bucket and the test bucket.
 
 Idempotent: every step checks the current state before changing anything.
 Uses only the standard library so the job runs offline on a stock Python image.
@@ -19,6 +19,8 @@ CAPACITY = os.environ.get("GARAGE_CAPACITY", "10G")
 ACCESS_KEY_ID = os.environ["S3_ACCESS_KEY_ID"]
 SECRET_ACCESS_KEY = os.environ["S3_SECRET_ACCESS_KEY"]
 BUCKET = os.environ["S3_BUCKET"]
+# Used only by the storage integration tests (backend/tests/test_files_storage_integration.py).
+TEST_BUCKET = os.environ.get("S3_TEST_BUCKET", "").strip()
 ZONE = "home"
 
 SERVER_ERROR_RETRIES = 5
@@ -131,13 +133,13 @@ def ensure_key() -> None:
     print(f"key: {ACCESS_KEY_ID} already exists (secret matches)")
 
 
-def ensure_bucket() -> None:
+def ensure_bucket(name: str) -> None:
     try:
-        bucket = api("GET", "GetBucketInfo", query={"globalAlias": BUCKET})
-        print(f"bucket: '{BUCKET}' already exists")
+        bucket = api("GET", "GetBucketInfo", query={"globalAlias": name})
+        print(f"bucket: '{name}' already exists")
     except NotFound:
-        bucket = api("POST", "CreateBucket", {"globalAlias": BUCKET})
-        print(f"bucket: '{BUCKET}' created")
+        bucket = api("POST", "CreateBucket", {"globalAlias": name})
+        print(f"bucket: '{name}' created")
     api(
         "POST",
         "AllowBucketKey",
@@ -158,7 +160,7 @@ def ensure_bucket() -> None:
             "permissions": {"read": False, "write": False, "owner": True},
         },
     )
-    print(f"bucket: read/write (no owner) granted to {ACCESS_KEY_ID}")
+    print(f"bucket: '{name}' read/write (no owner) granted to {ACCESS_KEY_ID}")
 
 
 def main() -> None:
@@ -166,7 +168,9 @@ def main() -> None:
     status = wait_for_admin_api()
     ensure_layout(status)
     ensure_key()
-    ensure_bucket()
+    ensure_bucket(BUCKET)
+    if TEST_BUCKET and TEST_BUCKET != BUCKET:
+        ensure_bucket(TEST_BUCKET)
     print("garage-init: done")
 
 
