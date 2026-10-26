@@ -67,6 +67,20 @@ def get_for_user(
     return db.scalar(stmt)
 
 
+def exists_for_user(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> bool:
+    """Whether the item belongs to the user, holding a FOR KEY SHARE lock until commit.
+
+    For attachments (`files`): the lock makes a concurrent delete of the item wait for the upload's
+    commit (and then remove its files too), or the delete commits first and this returns False.
+    """
+    stmt = (
+        select(ShoppingItem.id)
+        .where(ShoppingItem.id == item_id, ShoppingItem.user_id == user_id)
+        .with_for_update(read=True, key_share=True)  # FOR KEY SHARE (key_share alone is NO KEY UPDATE)
+    )
+    return db.scalar(stmt) is not None
+
+
 def list_for_user(
     db: Session, user_id: uuid.UUID, filters: ShoppingFilters, sort: str, limit: int, offset: int
 ) -> tuple[list[ShoppingItem], int]:
@@ -141,9 +155,12 @@ def delete_item(db: Session, item: ShoppingItem) -> None:
     flush(db)
 
 
-def delete_purchased(db: Session, user_id: uuid.UUID) -> int:
-    """Delete every purchased item of the user; returns how many."""
-    result = db.execute(
-        delete(ShoppingItem).where(ShoppingItem.user_id == user_id, ShoppingItem.is_purchased)
+def delete_purchased(db: Session, user_id: uuid.UUID) -> list[uuid.UUID]:
+    """Delete every purchased item of the user; returns their ids."""
+    return list(
+        db.scalars(
+            delete(ShoppingItem)
+            .where(ShoppingItem.user_id == user_id, ShoppingItem.is_purchased)
+            .returning(ShoppingItem.id)
+        ).all()
     )
-    return result.rowcount

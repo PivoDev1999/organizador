@@ -26,13 +26,42 @@ risco de supply chain.
 O [Garage](https://garagehq.deuxfleurs.fr/) é um armazenamento de objetos compatível com S3, feito
 para self-hosting em hardware modesto. Ele tem imagem oficial mantida (`dxflrs/garage`) e é leve
 (um binário só). Como a API conversa com o storage pelo protocolo S3 (boto3), a troca é transparente
-para o código: a tabela `files`, os uploads e as URLs temporárias funcionam igual.
+para o código: a API usa só a interface `Storage` (`backend/app/core/storage.py`).
 
 Diferenças práticas:
 - O Garage não tem console web. Use a CLI (`docker compose exec garage /garage ...`) ou qualquer
   cliente S3.
-- O layout do cluster, a chave de acesso e o bucket precisam ser configurados uma vez. O serviço
-  `garage-init` do `docker-compose.yml` faz isso automaticamente pela Admin API, e é idempotente.
+- O layout do cluster, a chave de acesso e os buckets precisam ser configurados uma vez. O serviço
+  `garage-init` do `docker-compose.yml` faz isso automaticamente pela Admin API, e é idempotente. Ele
+  cria o bucket do app (`S3_BUCKET`) e o dos testes de integração (`S3_TEST_BUCKET`, padrão
+  `organizador-test`), com a mesma chave, sem permissão de dono.
+
+### Como os arquivos são servidos
+
+- O Garage continua preso em `127.0.0.1`. Upload e download passam pela API: no download ela lê o
+  objeto e repassa em blocos (streaming), sem carregar o arquivo inteiro na memória e sem URL
+  pré-assinada.
+- Limite por arquivo: `MAX_UPLOAD_MB` (padrão 20). Um middleware recusa com 413, antes de gravar o
+  multipart em disco, o corpo acima do limite + 1 MB de envelope (pelo `Content-Length` ou contando os
+  bytes, se vier chunked). Depois a API conta os bytes do arquivo enquanto envia ao Garage e aborta
+  acima do limite (413), apagando o objeto parcial. Arquivo vazio é recusado (422).
+- Qualquer tipo é aceito, mas o download sai como anexo (`application/octet-stream`). `?inline=true`
+  só vale para JPEG, PNG, GIF, WebP e PDF **confirmados pelos primeiros bytes** (nunca pelo tipo que o
+  cliente informou); SVG e HTML nunca saem inline. Toda resposta leva `X-Content-Type-Options: nosniff`
+  e `Content-Security-Policy: default-src 'none'; sandbox`, inclusive as de erro (401, 404, 413, 503).
+  Regras em `backend/app/core/file_types.py`.
+- A chave do objeto é `{user_id}/{entity_type}/{uuid}`: o nome original fica só no banco (saneado).
+- Apagar um registro (tarefa, pet, evento, transação etc.) apaga os anexos: as linhas na mesma
+  transação e os objetos depois do commit. Se o Garage falhar nessa hora, sobra um objeto órfão,
+  registrado no log.
+- Apagar um usuário (o `ON DELETE CASCADE` leva as linhas de `files`) ou recriar o demo com
+  `python -m scripts.seed` também deixa os objetos dele órfãos no Garage. Para limpar:
+
+```bash
+cd backend
+python -m scripts.cleanup_orphans --dry-run   # só mostra o que seria apagado
+python -m scripts.cleanup_orphans             # apaga órfãos com mais de 24 horas
+```
 
 ## Pré-requisitos
 
@@ -90,6 +119,8 @@ proxy reverso (Fase 5) vai ficar exposto na rede local.
 ```bash
 cd backend
 pytest                       # usa o banco POSTGRES_TEST_DB (criado na 1ª subida do Postgres)
+                             # e o bucket S3_TEST_BUCKET do Garage (testes de integração do storage,
+                             # pulados se o Garage estiver fora do ar; os demais usam um storage em memória)
 ruff check . && ruff format --check .
 ```
 

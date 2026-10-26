@@ -3,7 +3,19 @@ import logging
 from fastapi import FastAPI
 
 from app.api.errors import register_exception_handlers
-from app.api.routers import auth, budgets, health, pantry, pets, routines, shopping, tasks, transactions
+from app.api.middleware import FilesSecurityHeaders, UploadBodyLimit
+from app.api.routers import (
+    auth,
+    budgets,
+    files,
+    health,
+    pantry,
+    pets,
+    routines,
+    shopping,
+    tasks,
+    transactions,
+)
 from app.core.config import Settings, get_settings
 from app.core.security import DEFAULT_BCRYPT_ROUNDS, dummy_password_hash
 
@@ -29,6 +41,9 @@ prepare_password_hashing(settings)
 
 app = FastAPI(title=settings.app_name, docs_url="/api/docs", openapi_url="/api/openapi.json")
 register_exception_handlers(app)
+# The last one added runs first: the security headers also cover the early 413 of the body limit.
+app.add_middleware(UploadBodyLimit)
+app.add_middleware(FilesSecurityHeaders)
 
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
@@ -39,3 +54,4 @@ app.include_router(shopping.router, prefix="/api")
 app.include_router(pets.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
+app.include_router(files.router, prefix="/api")

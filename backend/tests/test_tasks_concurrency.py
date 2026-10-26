@@ -18,6 +18,7 @@ from app.models import Task, User
 from app.repositories import task as task_repo
 from app.schemas.task import TaskUpdate
 from app.services import task as task_service
+from tests.fakes import FakeStorage
 
 BLOCKED_FOR = 0.3  # seconds the first writer holds the lock while the second one waits
 
@@ -94,7 +95,7 @@ def test_concurrent_status_changes_end_in_a_consistent_task(committed_task):
         lambda db, user_id, task_id: task_service.update_task(
             db, user_id, task_id, TaskUpdate(title="Outra")
         ),
-        lambda db, user_id, task_id: task_service.delete_task(db, user_id, task_id),
+        lambda db, user_id, task_id: task_service.delete_task(db, FakeStorage(), user_id, task_id),
     ],
     ids=["patch", "delete"],
 )
@@ -133,4 +134,4 @@ def test_update_without_changes_releases_the_lock(committed_task):
         assert not db.in_transaction()  # committed: the FOR UPDATE lock is gone before the response
         with SessionLocal() as other:
             other.execute(text("SET LOCAL lock_timeout = '1s'"))
-            task_service.delete_task(other, user_id, task_id)  # would time out if still locked
+            task_service.delete_task(other, FakeStorage(), user_id, task_id)  # would time out if still locked

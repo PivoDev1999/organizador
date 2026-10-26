@@ -31,11 +31,14 @@ from app.core.finance import (
     paid_at_for,
     paid_on_of,
 )
+from app.core.storage import Storage
 from app.models import Transaction
+from app.models.file import FileEntityType
 from app.repositories import pet as pet_repo
 from app.repositories import transaction as transaction_repo
 from app.repositories.transaction import TransactionFilters
 from app.schemas.finance import TransactionCreate, TransactionQuery, TransactionUpdate
+from app.services import files as files_service
 
 
 class TransactionNotFound(NotFoundError):
@@ -193,12 +196,12 @@ def update_transaction(
     return _view(transaction, settings, _today(settings))
 
 
-def delete_transaction(db: Session, user_id: uuid.UUID, transaction_id: uuid.UUID) -> None:
-    # Attachments (files with entity_type transaction) have no FK: the Arquivos module will delete
-    # them here (see docs/ROADMAP.md).
+def delete_transaction(db: Session, storage: Storage, user_id: uuid.UUID, transaction_id: uuid.UUID) -> None:
     transaction = get_transaction(db, user_id, transaction_id, for_update=True)
     transaction_repo.delete(db, transaction)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.TRANSACTION, [transaction_id])
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 def pay(

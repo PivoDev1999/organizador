@@ -20,8 +20,10 @@ os.environ["POSTGRES_DB"] = _test_db
 os.environ["BCRYPT_ROUNDS"] = "4"
 get_settings.cache_clear()
 
+import uuid  # noqa: E402
 from collections.abc import Callable, Iterator  # noqa: E402
-from datetime import UTC, datetime  # noqa: E402
+from datetime import UTC, date, datetime  # noqa: E402
+from decimal import Decimal  # noqa: E402
 from pathlib import Path  # noqa: E402
 
 from alembic.config import Config  # noqa: E402
@@ -32,8 +34,20 @@ from alembic import command  # noqa: E402
 from app.core.config import Settings  # noqa: E402
 from app.core.database import SESSION_OPTIONS, engine, get_db  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
+from app.core.storage import get_storage  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Task, User  # noqa: E402
+from app.models import (  # noqa: E402
+    PantryItem,
+    Pet,
+    PetEvent,
+    Routine,
+    ShoppingItem,
+    Task,
+    Transaction,
+    User,
+)
+from app.models.file import FileEntityType  # noqa: E402
+from tests.fakes import FakeStorage  # noqa: E402
 from tests.helpers import TEST_PASSWORD, auth_header, login, make_settings  # noqa: E402
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -67,11 +81,18 @@ def db_session() -> Iterator[Session]:
 
 
 @pytest.fixture
-def client(db_session: Session) -> Iterator[TestClient]:
+def storage() -> FakeStorage:
+    """In-memory file storage; the `client` fixture injects it in place of Garage."""
+    return FakeStorage()
+
+
+@pytest.fixture
+def client(db_session: Session, storage: FakeStorage) -> Iterator[TestClient]:
     """API client sharing `db_session`; everything is rolled back after the test.
 
     Like production (one session per request), whatever a request did not commit is discarded when it
     ends, so a service that forgets db.commit() fails the test instead of passing silently.
+    Files go to the `storage` fixture (FakeStorage), never to Garage.
     """
 
     def _get_test_db() -> Iterator[Session]:
@@ -81,6 +102,7 @@ def client(db_session: Session) -> Iterator[TestClient]:
             db_session.rollback()  # create_savepoint mode: undoes only the uncommitted part
 
     app.dependency_overrides[get_db] = _get_test_db
+    app.dependency_overrides[get_storage] = lambda: storage
     try:
         with TestClient(app) as test_client:
             yield test_client
@@ -155,3 +177,43 @@ def create_task(db_session: Session) -> Callable[..., Task]:
         return task
 
     return _create
+
+
+@pytest.fixture
+def make_entity(db_session: Session) -> Callable[..., uuid.UUID]:
+    """Insert a record of any attachable type for the user and return its id: make_entity(ana, "pet").
+
+    `pet_id` links a "pet_event" (a new pet is created when it is omitted) or a "transaction"; other
+    fields go to the model (e.g. is_purchased=True for a shopping item).
+    """
+
+    def _make(user: User, entity_type: str, pet_id: uuid.UUID | None = None, **fields) -> uuid.UUID:
+        uid = user.id
+        match FileEntityType(entity_type):
+            case FileEntityType.TASK:
+                record = Task(user_id=uid, title="Tarefa", **fields)
+            case FileEntityType.ROUTINE:
+                record = Routine(user_id=uid, name="Rotina", frequency="daily", **fields)
+            case FileEntityType.PANTRY_ITEM:
+                record = PantryItem(user_id=uid, name=f"Arroz {uuid.uuid4()}", category="Grãos", unit="kg")
+            case FileEntityType.SHOPPING_ITEM:
+                record = ShoppingItem(user_id=uid, name="Leite", category="Laticínios", **fields)
+            case FileEntityType.PET:
+                record = Pet(user_id=uid, name="Mel", species="Cachorro", **fields)
+            case FileEntityType.PET_EVENT:
+                pet_id = pet_id or _make(user, FileEntityType.PET)
+                record = PetEvent(pet_id=pet_id, user_id=uid, type="vet", occurred_on=date(2026, 1, 10))
+            case FileEntityType.TRANSACTION:
+                record = Transaction(
+                    user_id=uid,
+                    type="expense",
+                    amount=Decimal("10.00"),
+                    category="Casa",
+                    due_date=date(2026, 1, 1),
+                    pet_id=pet_id,
+                )
+        db_session.add(record)
+        db_session.commit()
+        return record.id
+
+    return _make

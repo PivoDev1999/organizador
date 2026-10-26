@@ -25,6 +25,7 @@ from app.core.security import hash_password
 from app.models import Pet, PetEvent, User
 from app.schemas.pet import PetEventCreate, PetEventUpdate, PetUpdate
 from app.services import pet as pet_service
+from tests.fakes import FakeStorage
 from tests.helpers import make_settings
 
 BLOCKED_FOR = 0.3  # seconds the first writer holds its locks while the second one should wait
@@ -101,7 +102,9 @@ def count_events(pet_id: uuid.UUID) -> int:
         lambda db, user_id, pet_id, event_id: pet_service.update_event(
             db, SETTINGS, user_id, pet_id, event_id, PetEventUpdate(description="Reforço")
         ),
-        lambda db, user_id, pet_id, event_id: pet_service.delete_event(db, user_id, pet_id, event_id),
+        lambda db, user_id, pet_id, event_id: pet_service.delete_event(
+            db, FakeStorage(), user_id, pet_id, event_id
+        ),
         lambda db, user_id, pet_id, event_id: pet_service.update_pet(
             db, SETTINGS, user_id, pet_id, PetUpdate(name="Mel II")
         ),
@@ -112,7 +115,7 @@ def test_write_waits_for_concurrent_pet_delete_and_is_not_found(committed_pet, w
     user_id, pet_id, event_id = committed_pet
 
     outcome = run_before_commit(
-        lambda db: pet_service.delete_pet(db, user_id, pet_id),
+        lambda db: pet_service.delete_pet(db, FakeStorage(), user_id, pet_id),
         lambda db: write(db, user_id, pet_id, event_id),
         BLOCKED_FOR,
     )

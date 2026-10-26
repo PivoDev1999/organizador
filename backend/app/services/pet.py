@@ -8,10 +8,13 @@ from app.core import clock
 from app.core.config import Settings
 from app.core.errors import NotFoundError, ValidationError
 from app.core.pet_care import is_overdue
+from app.core.storage import Storage
 from app.models import Pet, PetEvent
+from app.models.file import FileEntityType
 from app.repositories import pet as pet_repo
 from app.repositories.pet import PetEventFilters, PetFilters
 from app.schemas.pet import PetCreate, PetEventCreate, PetEventQuery, PetEventUpdate, PetQuery, PetUpdate
+from app.services import files as files_service
 
 
 class PetNotFound(NotFoundError):
@@ -120,13 +123,17 @@ def update_pet(
     return pet
 
 
-def delete_pet(db: Session, user_id: uuid.UUID, pet_id: uuid.UUID) -> None:
-    """Delete the pet and its events; its expenses stay in finances, without the pet."""
-    # Attachments (files with entity_type pet/pet_event) have no FK: the Arquivos module will delete
-    # them here (see docs/ROADMAP.md).
+def delete_pet(db: Session, storage: Storage, user_id: uuid.UUID, pet_id: uuid.UUID) -> None:
+    """Delete the pet, its events and the attachments of both; its expenses stay in finances, without
+    the pet (and keep their own attachments)."""
     pet = get_pet(db, user_id, pet_id, for_update=True)
-    pet_repo.delete(db, pet)
+    # No new event can appear now: creating one takes FOR KEY SHARE on the pet, which the lock above blocks.
+    event_ids = pet_repo.list_event_ids(db, pet_id)
+    pet_repo.delete(db, pet)  # the events go by ON DELETE CASCADE
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.PET, [pet_id])
+    keys += files_service.delete_attachments(db, user_id, FileEntityType.PET_EVENT, event_ids)
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 # --- events ----------------------------------------------------------------------------------------
@@ -200,12 +207,14 @@ def update_event(
     return event
 
 
-def delete_event(db: Session, user_id: uuid.UUID, pet_id: uuid.UUID, event_id: uuid.UUID) -> None:
-    # Attachments (files with entity_type pet_event) have no FK: the Arquivos module will delete them
-    # here (see docs/ROADMAP.md).
+def delete_event(
+    db: Session, storage: Storage, user_id: uuid.UUID, pet_id: uuid.UUID, event_id: uuid.UUID
+) -> None:
     event = _get_event_for_update(db, user_id, pet_id, event_id)
     pet_repo.delete_event(db, event)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.PET_EVENT, [event_id])
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 # --- reminders -------------------------------------------------------------------------------------

@@ -38,7 +38,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # One-shot job: assigns the node layout, imports the S3 key and creates the bucket.
+  # One-shot job: assigns the node layout, imports the S3 key and creates the buckets (app and tests).
   # Idempotent, so it is safe to run on every `docker compose up`.
   garage-init:
     image: python:3.12.15-alpine
@@ -53,6 +53,7 @@ services:
       S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
       S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
       S3_BUCKET: ${S3_BUCKET}
+      S3_TEST_BUCKET: ${S3_TEST_BUCKET:-organizador-test}
     volumes:
       - ./infra/garage/init.py:/init.py:ro
     command: ["python", "-u", "/init.py"]

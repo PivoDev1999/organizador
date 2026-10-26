@@ -36,6 +36,7 @@ from app.services import budget as budget_service
 from app.services import pet as pet_service
 from app.services import transaction as transaction_service
 from app.services.transaction import TransactionView
+from tests.fakes import FakeStorage
 from tests.helpers import make_settings
 
 BLOCKED_FOR = 0.3  # seconds a lock is held (or a step delayed) while the other side runs
@@ -198,7 +199,7 @@ def test_patch_setting_pet_id_during_delete_of_that_pet_neither_deadlocks_nor_fa
             db, SETTINGS, ids.user_id, ids.transaction_id, data
         ),
         # Starts while the PATCH holds its locks.
-        delayed(lambda db: pet_service.delete_pet(db, ids.user_id, pet_id), BLOCKED_FOR / 3),
+        delayed(lambda db: pet_service.delete_pet(db, FakeStorage(), ids.user_id, pet_id), BLOCKED_FOR / 3),
     )
 
     assert isinstance(outcomes[0], TransactionView), repr(outcomes)
@@ -298,11 +299,13 @@ def _pay(ids: Committed) -> Call:
 
 
 def _delete_transaction(ids: Committed) -> Call:
-    return lambda db: transaction_service.delete_transaction(db, ids.user_id, ids.transaction_id)
+    return lambda db: transaction_service.delete_transaction(
+        db, FakeStorage(), ids.user_id, ids.transaction_id
+    )
 
 
 def _delete_mel(ids: Committed) -> Call:
-    return lambda db: pet_service.delete_pet(db, ids.user_id, ids.mel_id)
+    return lambda db: pet_service.delete_pet(db, FakeStorage(), ids.user_id, ids.mel_id)
 
 
 def _mel_transactions(ids: Committed) -> list[Transaction]:

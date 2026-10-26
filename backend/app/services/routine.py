@@ -8,11 +8,14 @@ from app.core import clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.schedule import SCHEDULE_FIELDS, is_due, schedule_problem
+from app.core.storage import Storage
 from app.models import Routine, RoutineLog
+from app.models.file import FileEntityType
 from app.repositories import routine as routine_repo
 from app.repositories.errors import DuplicateError
 from app.repositories.routine import LOG_UNIQUE_CONSTRAINT, RoutineFilters
 from app.schemas.routine import RoutineCreate, RoutineLogCreate, RoutineLogQuery, RoutineQuery, RoutineUpdate
+from app.services import files as files_service
 
 
 class RoutineNotFound(NotFoundError):
@@ -120,10 +123,12 @@ def update_routine(db: Session, user_id: uuid.UUID, routine_id: uuid.UUID, data:
     return routine
 
 
-def delete_routine(db: Session, user_id: uuid.UUID, routine_id: uuid.UUID) -> None:
+def delete_routine(db: Session, storage: Storage, user_id: uuid.UUID, routine_id: uuid.UUID) -> None:
     routine = get_routine(db, user_id, routine_id, for_update=True)
     routine_repo.delete(db, routine)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.ROUTINE, [routine_id])
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 def list_logs(

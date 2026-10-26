@@ -70,8 +70,8 @@ def seed(session: Session, password: str | None = None, settings: Settings | Non
     session.add_all([*tasks, *routines, *pantry, *shopping, mel, frajola])
     session.add_all(_transactions(uid, today, now, mel, frajola))
     session.add_all(_budgets(uid, today))
-    # No sample `files`: there are no objects in storage yet, so rows would be orphan metadata.
-    # Example files come with the upload feature in Phase 3.
+    # No sample `files`: the seed does not touch the storage. Objects of files uploaded to the previous
+    # demo user (whose rows the delete above cascaded) are left as orphans for scripts.cleanup_orphans.
     session.flush()
     return user
 

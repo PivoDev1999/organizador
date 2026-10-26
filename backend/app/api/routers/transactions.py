@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Query, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import Page
 from app.schemas.finance import (
@@ -91,8 +91,10 @@ def update_transaction(
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_transaction(transaction_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    transaction_service.delete_transaction(db, current_user.id, transaction_id)
+def delete_transaction(
+    transaction_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser
+) -> None:
+    transaction_service.delete_transaction(db, storage, current_user.id, transaction_id)
 
 
 @router.post("/{transaction_id}/pay")

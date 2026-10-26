@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, Response, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import Page
 from app.schemas.shopping import (
@@ -69,9 +69,9 @@ def create_from_pantry(
 
 
 @router.delete("/purchased", status_code=status.HTTP_204_NO_CONTENT)
-def delete_purchased(db: DbSession, current_user: CurrentUser) -> None:
-    """Apaga todos os itens já comprados do usuário."""
-    shopping_service.delete_purchased(db, current_user.id)
+def delete_purchased(db: DbSession, storage: StorageDep, current_user: CurrentUser) -> None:
+    """Apaga todos os itens já comprados do usuário, com os anexos deles."""
+    shopping_service.delete_purchased(db, storage, current_user.id)
 
 
 @router.get("/{item_id}")
@@ -88,8 +88,8 @@ def update_item(
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    shopping_service.delete_item(db, current_user.id, item_id)
+def delete_item(item_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser) -> None:
+    shopping_service.delete_item(db, storage, current_user.id, item_id)
 
 
 @router.post("/{item_id}/purchase")
