@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.core import clock
 from app.core.config import Settings, get_settings
+from app.core.finance import month_bounds
 from app.core.security import hash_password
 from app.models import (
     Budget,
@@ -278,7 +279,12 @@ def _pets(uid: uuid.UUID, today: date) -> tuple[Pet, Pet]:
 
 
 def _transactions(uid: uuid.UUID, today: date, now: datetime, mel: Pet, frajola: Pet) -> list[Transaction]:
-    month_start = today.replace(day=1)
+    month_start, month_end = month_bounds(today)
+
+    def due(days: int) -> date:
+        # Kept inside the current month: the summary and the budgets count by due month (accrual basis),
+        # so the demo month shows every sample transaction whatever day the seed runs.
+        return min(max(today + timedelta(days=days), month_start), month_end)
 
     def tx(description, category, amount, due_in, paid_days_ago=None, type_="expense", pet=None):
         return Transaction(
@@ -287,7 +293,7 @@ def _transactions(uid: uuid.UUID, today: date, now: datetime, mel: Pet, frajola:
             amount=Decimal(amount),
             category=category,
             description=description,
-            due_date=today + timedelta(days=due_in),
+            due_date=due(due_in),
             paid_at=now - timedelta(days=paid_days_ago) if paid_days_ago is not None else None,
             pet=pet,
         )
