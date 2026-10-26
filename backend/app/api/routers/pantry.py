@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import Page
 from app.schemas.pantry import (
@@ -83,8 +83,8 @@ def update_item(
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_item(item_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    pantry_service.delete_item(db, current_user.id, item_id)
+def delete_item(item_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser) -> None:
+    pantry_service.delete_item(db, storage, current_user.id, item_id)
 
 
 @router.post("/{item_id}/consume")

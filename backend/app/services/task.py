@@ -5,10 +5,13 @@ from sqlalchemy.orm import Session
 from app.core import clock
 from app.core.config import Settings
 from app.core.errors import NotFoundError
+from app.core.storage import Storage
 from app.models import Task, TaskStatus
+from app.models.file import FileEntityType
 from app.repositories import task as task_repo
 from app.repositories.task import TaskFilters
 from app.schemas.task import TaskCreate, TaskQuery, TaskUpdate
+from app.services import files as files_service
 
 
 class TaskNotFound(NotFoundError):
@@ -73,7 +76,9 @@ def update_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskU
     return task
 
 
-def delete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
+def delete_task(db: Session, storage: Storage, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
     task = get_task(db, user_id, task_id, for_update=True)
     task_repo.delete(db, task)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.TASK, [task_id])
     db.commit()
+    files_service.purge_objects(storage, keys)

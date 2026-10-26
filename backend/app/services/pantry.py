@@ -8,11 +8,14 @@ from app.core import clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.core.stock import is_expired, is_low_stock
+from app.core.storage import Storage
 from app.models import PantryItem
+from app.models.file import FileEntityType
 from app.repositories import pantry as pantry_repo
 from app.repositories.pantry import PantryFilters
 from app.schemas.common import QUANTITY_MAX
 from app.schemas.pantry import PantryItemCreate, PantryItemUpdate, PantryQuery, StockChange
+from app.services import files as files_service
 
 
 class PantryItemNotFound(NotFoundError):
@@ -110,12 +113,14 @@ def update_item(
     return _view(item, _today(settings))
 
 
-def delete_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
+def delete_item(db: Session, storage: Storage, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
     # Locks the pantry item, then (ON DELETE SET NULL) its shopping items: the P -> S lock order that
     # every pantry/shopping service follows (see app.services.shopping).
     item = get_item(db, user_id, item_id, for_update=True)
     pantry_repo.delete(db, item)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.PANTRY_ITEM, [item_id])
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 def consume(

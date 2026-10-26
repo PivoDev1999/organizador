@@ -109,6 +109,20 @@ def get_for_user(
     return db.scalar(stmt)
 
 
+def exists_for_user(db: Session, user_id: uuid.UUID, transaction_id: uuid.UUID) -> bool:
+    """Whether the transaction belongs to the user, holding a FOR KEY SHARE lock until commit.
+
+    For attachments (`files`): the lock makes a concurrent delete of the transaction wait for the upload's
+    commit (and then remove its files too), or the delete commits first and this returns False.
+    """
+    stmt = (
+        select(Transaction.id)
+        .where(Transaction.id == transaction_id, Transaction.user_id == user_id)
+        .with_for_update(read=True, key_share=True)  # FOR KEY SHARE (key_share alone is NO KEY UPDATE)
+    )
+    return db.scalar(stmt) is not None
+
+
 def list_for_user(
     db: Session, user_id: uuid.UUID, filters: TransactionFilters, sort: str, limit: int, offset: int
 ) -> tuple[list[Transaction], int]:

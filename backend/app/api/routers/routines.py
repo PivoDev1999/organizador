@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Path, Query, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import IsoDate, Page
 from app.schemas.routine import (
@@ -56,8 +56,10 @@ def update_routine(
 
 
 @router.delete("/{routine_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_routine(routine_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    routine_service.delete_routine(db, current_user.id, routine_id)
+def delete_routine(
+    routine_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser
+) -> None:
+    routine_service.delete_routine(db, storage, current_user.id, routine_id)
 
 
 @router.get("/{routine_id}/logs")

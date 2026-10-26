@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import Page
 from app.schemas.pet import (
@@ -69,9 +69,10 @@ def update_pet(
 
 
 @router.delete("/{pet_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_pet(pet_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    """Apaga o pet e seus eventos. Os gastos ligados a ele continuam nas finanças, sem o pet."""
-    pet_service.delete_pet(db, current_user.id, pet_id)
+def delete_pet(pet_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser) -> None:
+    """Apaga o pet, seus eventos e os anexos de ambos. Os gastos ligados a ele continuam nas finanças,
+    sem o pet."""
+    pet_service.delete_pet(db, storage, current_user.id, pet_id)
 
 
 @router.get("/{pet_id}/events")
@@ -102,5 +103,7 @@ def update_event(
 
 
 @router.delete("/{pet_id}/events/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_event(pet_id: uuid.UUID, event_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    pet_service.delete_event(db, current_user.id, pet_id, event_id)
+def delete_event(
+    pet_id: uuid.UUID, event_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser
+) -> None:
+    pet_service.delete_event(db, storage, current_user.id, pet_id, event_id)

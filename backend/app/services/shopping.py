@@ -16,12 +16,15 @@ from app.core import clock
 from app.core.config import Settings
 from app.core.errors import ConcurrentChangeError, ConflictError, NotFoundError, ValidationError
 from app.core.stock import same_unit, shortfall
+from app.core.storage import Storage
 from app.models import PantryItem, ShoppingItem
+from app.models.file import FileEntityType
 from app.repositories import pantry as pantry_repo
 from app.repositories import shopping as shopping_repo
 from app.repositories.shopping import ShoppingFilters
 from app.schemas.common import MONEY_PLACES, QUANTITY_MAX
 from app.schemas.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingQuery
+from app.services import files as files_service
 
 MONEY_STEP = Decimal(1).scaleb(-MONEY_PLACES)  # 0.01
 # Attempts to lock P -> S when the item's link keeps changing between the read and the lock.
@@ -128,10 +131,12 @@ def update_item(
     return item
 
 
-def delete_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
+def delete_item(db: Session, storage: Storage, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
     item = get_item(db, user_id, item_id, for_update=True)
     shopping_repo.delete_item(db, item)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.SHOPPING_ITEM, [item_id])
     db.commit()
+    files_service.purge_objects(storage, keys)
 
 
 def _lock_pantry_then_item(
@@ -268,7 +273,10 @@ def create_from_pantry(
     return created
 
 
-def delete_purchased(db: Session, user_id: uuid.UUID) -> int:
-    deleted = shopping_repo.delete_purchased(db, user_id)
+def delete_purchased(db: Session, storage: Storage, user_id: uuid.UUID) -> int:
+    """Delete every purchased item of the user, with their attachments; returns how many items."""
+    deleted_ids = shopping_repo.delete_purchased(db, user_id)
+    keys = files_service.delete_attachments(db, user_id, FileEntityType.SHOPPING_ITEM, deleted_ids)
     db.commit()
-    return deleted
+    files_service.purge_objects(storage, keys)
+    return len(deleted_ids)

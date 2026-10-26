@@ -155,6 +155,22 @@ def get_event_for_user(
     return db.scalar(stmt)
 
 
+def event_exists_for_user(db: Session, user_id: uuid.UUID, event_id: uuid.UUID) -> bool:
+    """Whether the event belongs to the user, holding a FOR KEY SHARE lock until commit (attachments:
+    see `exists_for_user`). Deleting the pet also waits for it, since the cascade deletes the event."""
+    stmt = (
+        select(PetEvent.id)
+        .where(PetEvent.id == event_id, PetEvent.user_id == user_id)
+        .with_for_update(read=True, key_share=True)
+    )
+    return db.scalar(stmt) is not None
+
+
+def list_event_ids(db: Session, pet_id: uuid.UUID) -> list[uuid.UUID]:
+    """Ids of every event of the pet (to delete their attachments along with the pet)."""
+    return list(db.scalars(select(PetEvent.id).where(PetEvent.pet_id == pet_id)).all())
+
+
 def list_events(
     db: Session, pet_id: uuid.UUID, filters: PetEventFilters, limit: int, offset: int
 ) -> tuple[list[PetEvent], int]:

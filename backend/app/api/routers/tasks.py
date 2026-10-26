@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentUser, SettingsDep
+from app.api.deps import CurrentUser, SettingsDep, StorageDep
 from app.core.database import DbSession
 from app.schemas.common import Page
 from app.schemas.task import TaskCreate, TaskQuery, TaskRead, TaskUpdate
@@ -35,5 +35,5 @@ def update_task(task_id: uuid.UUID, data: TaskUpdate, db: DbSession, current_use
 
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: uuid.UUID, db: DbSession, current_user: CurrentUser) -> None:
-    task_service.delete_task(db, current_user.id, task_id)
+def delete_task(task_id: uuid.UUID, db: DbSession, storage: StorageDep, current_user: CurrentUser) -> None:
+    task_service.delete_task(db, storage, current_user.id, task_id)
