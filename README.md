@@ -122,6 +122,11 @@ FKs opcionais, `ON DELETE SET NULL (pet_id)` (PostgreSQL 15+) limpa só o víncu
 Rotinas mensais com `day_of_month` maior que o último dia do mês (29 a 31) caem no último dia: a do dia 31
 vale em 30/04 e em 28/02 (29/02 em ano bissexto).
 
+Um evento de pet com `next_due_on` é lembrete até existir um evento mais recente (por `occurred_on`,
+`created_at` e `id`) do mesmo pet, com o mesmo `type` e a mesma descrição normalizada (espaços nas pontas
+removidos e minúsculas Unicode, via `lower(... COLLATE "pt-BR-x-icu")`; sem descrição conta como uma série):
+registrar "v10 " resolve o lembrete da "V10", mas "Antirrábica" não.
+
 ```mermaid
 erDiagram
     users ||--o{ tasks : ""
