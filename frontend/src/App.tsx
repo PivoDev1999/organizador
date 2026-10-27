@@ -6,6 +6,7 @@ import { FinancePage } from "@/pages/FinancePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { PantryPage } from "@/pages/PantryPage";
+import { PetDetailPage } from "@/pages/PetDetailPage";
 import { PetsPage } from "@/pages/PetsPage";
 import { RoutinesPage } from "@/pages/RoutinesPage";
 import { ShoppingPage } from "@/pages/ShoppingPage";
@@ -24,6 +25,7 @@ export function App() {
           <Route path="despensa" element={<PantryPage />} />
           <Route path="mercado" element={<ShoppingPage />} />
           <Route path="pets" element={<PetsPage />} />
+          <Route path="pets/:id" element={<PetDetailPage />} />
           <Route path="financas" element={<FinancePage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
