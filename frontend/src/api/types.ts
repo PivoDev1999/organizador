@@ -8,6 +8,19 @@ export type Token = Schemas["Token"];
 export type FileRead = Schemas["FileRead"];
 export type FileEntityType = Schemas["FileEntityType"];
 export type ValidationIssue = Schemas["ValidationError"];
+export type Dashboard = Schemas["DashboardRead"];
+export type Task = Schemas["TaskRead"];
+export type RoutineToday = Schemas["RoutineTodayRead"];
+export type PantryItem = Schemas["PantryItemRead"];
+export type PetReminder = Schemas["PetReminderRead"];
+export type PetEventType = Schemas["PetEventType"];
+export type Transaction = Schemas["TransactionRead"];
+export type MonthTotals = Schemas["MonthTotalsRead"];
+export type MonthSummary = Schemas["SummaryRead"];
+export type CategoryTotals = Schemas["CategoryTotalsRead"];
+export type Budget = Schemas["BudgetRead"];
+export type BudgetAlert = Schemas["BudgetAlertRead"];
+export type BudgetAlertLevel = Schemas["BudgetAlertLevel"];
 
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 

@@ -1,7 +1,7 @@
 // Display formatters (pt-BR). Money and quantities arrive from the API as decimal strings
 // ("12.90", "1.500") and are formatted as text, never through a float.
+import { parseDecimal } from "./decimal";
 
-const DECIMAL = /^(-)?(\d+)(?:\.(\d+))?$/;
 const PLACEHOLDER = "—";
 const NBSP = "\u00a0";
 const integerFormat = new Intl.NumberFormat("pt-BR");
@@ -13,22 +13,22 @@ function groupThousands(digits: string): string {
 
 /** "12.90" → "R$ 12,90"; "-1234.5" → "-R$ 1.234,50". The space is a no-break space (U+00A0). */
 export function formatMoney(value: string | null | undefined): string {
-  const match = value?.trim().match(DECIMAL);
-  if (!match) return PLACEHOLDER;
-  const [, minus, integer = "0", fraction = ""] = match;
+  const parsed = parseDecimal(value);
+  if (!parsed) return PLACEHOLDER;
+  const { negative, integer, fraction } = parsed;
   const cents = fraction.padEnd(2, "0").slice(0, 2);
   const isZero = /^0+$/.test(integer) && /^0+$/.test(cents);
-  return `${minus && !isZero ? "-" : ""}R$${NBSP}${groupThousands(integer)},${cents}`;
+  return `${negative && !isZero ? "-" : ""}R$${NBSP}${groupThousands(integer)},${cents}`;
 }
 
 /** "1.500" → "1,5"; "2.000" → "2"; "1234.250" → "1.234,25". */
 export function formatQuantity(value: string | null | undefined): string {
-  const match = value?.trim().match(DECIMAL);
-  if (!match) return PLACEHOLDER;
-  const [, minus, integer = "0", fraction = ""] = match;
+  const parsed = parseDecimal(value);
+  if (!parsed) return PLACEHOLDER;
+  const { negative, integer, fraction } = parsed;
   const decimals = fraction.replace(/0+$/, "");
   const isZero = /^0+$/.test(integer) && decimals === "";
-  return `${minus && !isZero ? "-" : ""}${groupThousands(integer)}${decimals ? `,${decimals}` : ""}`;
+  return `${negative && !isZero ? "-" : ""}${groupThousands(integer)}${decimals ? `,${decimals}` : ""}`;
 }
 
 /** "2026-10-27" → "27/10/2026", by text: `new Date("2026-10-27")` is UTC midnight and shifts the day. */
@@ -37,6 +37,29 @@ export function formatDate(value: string | null | undefined): string {
   if (!match) return PLACEHOLDER;
   const [, year, month, day] = match;
   return `${day}/${month}/${year}`;
+}
+
+/** "2026-10-27" → "terça-feira, 27 de outubro". The date is read as UTC and formatted in UTC, so the
+ * device's time zone never shifts the day. */
+export function formatLongDate(value: string | null | undefined): string {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return PLACEHOLDER;
+  const [, year, month, day] = match;
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  return new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(
+    date,
+  );
+}
+
+/** "2026-10-27" → "2026-10" (the month parameter of the finance endpoints). */
+export function monthOf(value: string): string {
+  return value.slice(0, 7);
+}
+
+/** "85.50" → "85,5%"; null (no base to compare) → "—". */
+export function formatPercent(value: string | null | undefined): string {
+  const formatted = formatQuantity(value);
+  return formatted === PLACEHOLDER ? PLACEHOLDER : `${formatted}%`;
 }
 
 /** ISO timestamp → "27/10/2026, 14:30" in the device's time zone (or `timeZone`, for tests). */

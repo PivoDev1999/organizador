@@ -43,7 +43,7 @@ export function AppLayout() {
       </header>
       <div className="flex flex-1">
         <Sidebar />
-        <main ref={mainRef} id="conteudo" tabIndex={-1} className="min-w-0 flex-1 p-4 pb-28 md:p-8 md:pb-8">
+        <main ref={mainRef} id="conteudo" tabIndex={-1} className="min-w-0 flex-1 p-4 pb-[calc(7rem+env(safe-area-inset-bottom))] md:p-8 md:pb-8">
           <div className="mx-auto max-w-5xl">
             <Outlet />
           </div>
