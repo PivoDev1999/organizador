@@ -67,6 +67,7 @@ python -m scripts.cleanup_orphans             # apaga órfãos com mais de 24 ho
 
 - Docker com Docker Compose v2
 - Python 3.12 com `venv` (no Ubuntu/Debian: `sudo apt install python3.12-venv`)
+- Node.js 22.22+ ou 24 e npm 11 (frontend)
 - `openssl` (para gerar os segredos)
 
 ## Requisito do PostgreSQL: ICU
@@ -104,6 +105,7 @@ uvicorn app.main:app --reload --port 8000
 | Serviço | Endereço | Acesso |
 |---|---|---|
 | API (dev) | `http://localhost:8000/api` (docs em `/api/docs`) | servidor |
+| Frontend (dev) | `http://localhost:5173` (proxy de `/api` para a API) | servidor |
 | PostgreSQL | `127.0.0.1:5432` | só o servidor |
 | Garage (S3) | `127.0.0.1:3900` | só o servidor |
 | Adminer | `http://127.0.0.1:8080` (servidor `postgres`) | só o servidor |
@@ -116,6 +118,52 @@ alertas da despensa, mercado, lembretes dos pets, contas a pagar, totais do mês
 (`warning` com gasto de 80% a 100% do orçamento, `exceeded` acima dele, comparando os valores exatos),
 com as mesmas regras dos endpoints de cada módulo, lidos todos no mesmo instante (uma transação só de
 leitura, REPEATABLE READ).
+
+## Frontend
+
+React + TypeScript + Vite + Tailwind, em `frontend/`. Funciona sem internet: nada de CDN nem fontes
+externas (usa as fontes do sistema). O app chama a API sempre por `/api`; em desenvolvimento, o Vite faz
+proxy de `/api` para `http://127.0.0.1:${API_PORT}`, com `API_PORT` lido do `.env` da raiz (padrão 8000).
+
+```bash
+cd frontend
+npm ci                 # instala exatamente o que está no package-lock.json
+npm run dev            # http://localhost:5173 (com a API rodando na porta API_PORT)
+```
+
+Entre com `demo@organizador.local` e a senha `SEED_USER_PASSWORD` do `.env` (depois de rodar o seed).
+Para abrir no celular durante o desenvolvimento, use `npm run dev -- --host` e acesse pelo IP do servidor.
+
+| Comando | O que faz |
+|---|---|
+| `npm run api:types` | Gera `src/api/schema.d.ts` a partir de `http://127.0.0.1:${API_PORT}/api/openapi.json`. Sem a API no ar, usa o snapshot `openapi/openapi.json`. Os dois arquivos são versionados, então o build não depende da API. Rode sempre que mudar um schema do backend. |
+| `npm test` | Testes (Vitest + Testing Library, jsdom) |
+| `npm run lint` | ESLint (regras recomendadas de TypeScript e React Hooks) |
+| `npm run build` | Checagem de tipos (`tsc -b`) e build de produção em `frontend/dist/` |
+| `npm run preview` | Serve o build localmente |
+
+As dependências ficam com versões exatas (`.npmrc` com `save-exact=true`) e o `package-lock.json` é
+versionado. Só entram versões publicadas há pelo menos 2 semanas.
+
+Organização:
+
+```
+frontend/src/
+  api/          cliente HTTP (apiFetch tipado pelo schema.d.ts, ApiError, erros 422 por campo) e endpoints
+  auth/         token (único acesso ao localStorage), AuthProvider/useAuth, rota protegida
+  components/   componentes base, layout (menu lateral / barra inferior), toasts, anexos
+  lib/          formatadores (dinheiro e quantidades sem float, datas sem fuso)
+  pages/        uma página por rota
+```
+
+- **Sessão:** o token fica no `localStorage`. Qualquer 401 encerra a sessão e leva para
+  `/login?next=<página>`; depois do login, o usuário volta para onde estava.
+- **Erros:** a API responde `{"detail": "..."}` ou, no 422 (validação e regras de negócio),
+  `{"detail": [{"type", "loc", "msg"}]}`. `getFieldErrors` agrupa por campo (último item de `loc`);
+  regras de negócio chegam como `body`.
+- **Anexos:** `<Attachments entityType="task" entityId={id} />` lista, envia, pré-visualiza (imagens e PDF),
+  baixa e exclui. O download usa `fetch` com o token e abre o conteúdo como blob, então a CSP `sandbox`
+  da resposta não se aplica ao visualizador de PDF do navegador.
 
 ## Testes
 
@@ -141,6 +189,7 @@ backend/
 infra/
   postgres/init/    scripts da 1ª inicialização (cria o banco de teste)
   garage/           garage.toml e init.py (layout, chave e bucket)
+frontend/           React + Vite (ver seção Frontend)
 docs/ROADMAP.md
 docker-compose.yml
 .env.example
