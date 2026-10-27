@@ -24,8 +24,15 @@ class TaskFilters:
     due_to: date | None = None
     # When set: due_date < overdue_before and not done. The service passes "today" in the app timezone.
     overdue_before: date | None = None
+    # Only tasks that are not done (todo or doing).
+    open_only: bool = False
     # Plain text, matched literally (case-insensitive) in title or description.
     search: str | None = None
+
+
+def open_condition() -> ColumnElement[bool]:
+    """Not done yet (todo or doing)."""
+    return Task.status != TaskStatus.DONE.value
 
 
 def _conditions(user_id: uuid.UUID, filters: TaskFilters) -> list[ColumnElement[bool]]:
@@ -40,7 +47,8 @@ def _conditions(user_id: uuid.UUID, filters: TaskFilters) -> list[ColumnElement[
         conditions.append(Task.due_date <= filters.due_to)
     if filters.overdue_before is not None:
         conditions.append(Task.due_date < filters.overdue_before)
-        conditions.append(Task.status != TaskStatus.DONE.value)
+    if filters.open_only or filters.overdue_before is not None:
+        conditions.append(open_condition())
     if filters.search is not None:
         pattern = f"%{escape_like(filters.search)}%"
         conditions.append(
@@ -99,11 +107,16 @@ def list_for_user(
 ) -> tuple[list[Task], int]:
     """One page of the user's tasks plus the total number of matches (same filters, no paging)."""
     conditions = _conditions(user_id, filters)
-    total = db.scalar(select(func.count()).select_from(Task).where(*conditions)) or 0
+    total = count_for_user(db, user_id, filters)
     items = db.scalars(
         select(Task).where(*conditions).order_by(*_order_by(sort)).limit(limit).offset(offset)
     ).all()
     return list(items), total
+
+
+def count_for_user(db: Session, user_id: uuid.UUID, filters: TaskFilters) -> int:
+    """How many of the user's tasks match the filters."""
+    return db.scalar(select(func.count()).select_from(Task).where(*_conditions(user_id, filters))) or 0
 
 
 def add(db: Session, task: Task) -> Task:

@@ -155,6 +155,16 @@ def list_upcoming(db: Session, settings: Settings, user_id: uuid.UUID, within: i
     return [_view(item, settings, today) for item in items]
 
 
+def list_upcoming_preview(
+    db: Session, settings: Settings, user_id: uuid.UUID, today: date, within: int, limit: int
+) -> tuple[list[TransactionView], int]:
+    """The first `limit` bills of `list_upcoming` (same rule and order), plus the total."""
+    last_day = today + timedelta(days=within)
+    items = transaction_repo.list_upcoming(db, user_id, last_day, limit)
+    total = transaction_repo.count_upcoming(db, user_id, last_day)
+    return [_view(item, settings, today) for item in items], total
+
+
 def list_categories(db: Session, user_id: uuid.UUID) -> list[str]:
     return transaction_repo.distinct_categories(db, user_id)
 
@@ -241,14 +251,21 @@ def get_summary(db: Session, settings: Settings, user_id: uuid.UUID, month: date
     reference (tests check that both agree).
     """
     first, last = month_bounds(month or month_of(_today(settings)))
-    summary = MonthSummary(month=first)
-    for row in transaction_repo.month_totals(db, user_id, first, last):
-        totals = summary.income if row.type == INCOME else summary.expense
-        totals.total, totals.paid, totals.pending = row.total, row.paid, row.pending
+    summary = get_month_totals(db, user_id, first)
     summary.by_category = [
         CategoryTotals(
             total=row.total, paid=row.paid, pending=row.pending, type=row.type, category=row.category
         )
         for row in transaction_repo.category_totals(db, user_id, first, last)
     ]
+    return summary
+
+
+def get_month_totals(db: Session, user_id: uuid.UUID, month: date) -> MonthSummary:
+    """Income and expense totals of the month of `month` (accrual basis), without `by_category`."""
+    first, last = month_bounds(month)
+    summary = MonthSummary(month=first)
+    for row in transaction_repo.month_totals(db, user_id, first, last):
+        totals = summary.income if row.type == INCOME else summary.expense
+        totals.total, totals.paid, totals.pending = row.total, row.paid, row.pending
     return summary

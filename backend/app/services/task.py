@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 
 from sqlalchemy.orm import Session
 
@@ -6,7 +7,7 @@ from app.core import clock
 from app.core.config import Settings
 from app.core.errors import NotFoundError
 from app.core.storage import Storage
-from app.models import Task, TaskStatus
+from app.models import Task, TaskSort, TaskStatus
 from app.models.file import FileEntityType
 from app.repositories import task as task_repo
 from app.repositories.task import TaskFilters
@@ -31,6 +32,25 @@ def list_tasks(
         search=query.q,
     )
     return task_repo.list_for_user(db, user_id, filters, query.sort, query.limit, query.offset)
+
+
+def list_overdue(db: Session, user_id: uuid.UUID, today: date, limit: int) -> tuple[list[Task], int]:
+    """Up to `limit` overdue tasks (due before `today`, not done) by due date and id, plus the total.
+
+    Same rule as `GET /api/tasks?overdue=true`.
+    """
+    filters = TaskFilters(overdue_before=today)
+    return task_repo.list_for_user(db, user_id, filters, TaskSort.DUE_DATE, limit, 0)
+
+
+def list_open_due_on(db: Session, user_id: uuid.UUID, day: date, limit: int) -> tuple[list[Task], int]:
+    """Up to `limit` tasks due on `day` that are not done (by id), plus the total."""
+    filters = TaskFilters(due_from=day, due_to=day, open_only=True)
+    return task_repo.list_for_user(db, user_id, filters, TaskSort.DUE_DATE, limit, 0)
+
+
+def count_with_status(db: Session, user_id: uuid.UUID, status: TaskStatus) -> int:
+    return task_repo.count_for_user(db, user_id, TaskFilters(statuses=[status.value]))
 
 
 def get_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID, *, for_update: bool = False) -> Task:

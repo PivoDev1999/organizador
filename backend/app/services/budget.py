@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.core import clock
 from app.core.config import Settings
 from app.core.errors import ConflictError, NotFoundError
-from app.core.finance import month_of, percent_used
+from app.core.finance import BudgetAlertLevel, budget_alert_level, month_of, percent_used
 from app.models import Budget
 from app.repositories import budget as budget_repo
 from app.repositories.errors import DuplicateError
@@ -43,6 +43,12 @@ class BudgetView:
     @property
     def percent_used(self) -> Decimal | None:
         return percent_used(self.spent, self.budget.amount)
+
+
+@dataclass(frozen=True)
+class BudgetAlert:
+    view: BudgetView
+    level: BudgetAlertLevel
 
 
 @dataclass(frozen=True)
@@ -75,6 +81,29 @@ def get_budget(db: Session, user_id: uuid.UUID, budget_id: uuid.UUID, *, for_upd
 def list_budgets(db: Session, settings: Settings, user_id: uuid.UUID, month: date | None) -> list[BudgetView]:
     """Budgets of the month (default: the current one in the app timezone) with what was spent."""
     return _views(db, user_id, month or month_of(clock.today(settings.timezone)))
+
+
+def _alert_order(alert: BudgetAlert) -> tuple[bool, Decimal]:
+    """Exceeded first, then the exact share used (spent / amount, not the rounded percent). A zero
+    budget with spending counts as infinitely used: first among the exceeded."""
+    budget = alert.view.budget
+    used = alert.view.spent / budget.amount if budget.amount else Decimal("Infinity")
+    return alert.level != BudgetAlertLevel.EXCEEDED, -used
+
+
+def list_alerts(db: Session, user_id: uuid.UUID, month: date) -> list[BudgetAlert]:
+    """Budgets of the month in alert (`app.core.finance.budget_alert_level`, exact amounts): exceeded
+    first, then the most used (exact share), then category in pt-BR (the order of the query; the sort
+    is stable).
+
+    The level is a pure Python rule, so the budgets of the month (a household has tens) are filtered here.
+    """
+    alerts = [
+        BudgetAlert(view, level)
+        for view in _views(db, user_id, month)
+        if (level := budget_alert_level(view.spent, view.budget.amount)) is not None
+    ]
+    return sorted(alerts, key=_alert_order)
 
 
 def create_budget(db: Session, user_id: uuid.UUID, data: BudgetCreate) -> BudgetView:

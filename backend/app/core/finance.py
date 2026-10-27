@@ -199,6 +199,33 @@ def budget_spent(entries: Iterable[Entry], category: str, month: date) -> Decima
     )
 
 
+class BudgetAlertLevel(StrEnum):
+    WARNING = "warning"
+    EXCEEDED = "exceeded"
+
+
+# Alert thresholds in percent of the budget, compared with the exact amounts (never the rounded
+# `percent_used` shown): 100.0% shown for 10004.99 of 10000 is already exceeded.
+BUDGET_WARNING_PERCENT = Decimal(80)  # spent >= 80% of the amount (inclusive): warning
+BUDGET_EXCEEDED_PERCENT = Decimal(100)  # spent > 100% of the amount (exclusive): exceeded; exactly 100% warns
+
+
+def budget_alert_level(spent: Decimal, amount: Decimal) -> BudgetAlertLevel | None:
+    """Alert of a budget, decided on the exact Decimal values (no rounding):
+
+    - exceeded: spent > amount (above 100%);
+    - warning: spent * 100 >= 80 * amount and not exceeded (80% to exactly 100%, both inclusive);
+    - None otherwise.
+
+    A zero budget follows the same comparisons: any spending exceeds it, nothing spent is no alert.
+    """
+    if spent * 100 > BUDGET_EXCEEDED_PERCENT * amount:
+        return BudgetAlertLevel.EXCEEDED
+    if spent > 0 and spent * 100 >= BUDGET_WARNING_PERCENT * amount:
+        return BudgetAlertLevel.WARNING
+    return None
+
+
 def percent_used(spent: Decimal, amount: Decimal) -> Decimal | None:
     """spent / amount in percent with 1 decimal place (half up). None for a zero budget: any spending
     would be "infinite" percent, and 0 of 0 is not 0% used either."""

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, Select, func, select
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session, aliased
 
@@ -213,7 +213,7 @@ def series_description() -> ColumnElement[str | None]:
     return func.lower(func.btrim(PetEvent.description).collate(TEXT_SORT_COLLATION))
 
 
-def list_reminders(db: Session, user_id: uuid.UUID, last_day: date) -> list[tuple[PetEvent, str]]:
+def _reminders(user_id: uuid.UUID, last_day: date) -> Select[tuple[PetEvent, str]]:
     """The user's reminders due up to `last_day` (overdue ones included), each with the pet name.
 
     DISTINCT ON keeps the newest event of each (pet, type, normalized description) series (NULL
@@ -235,10 +235,23 @@ def list_reminders(db: Session, user_id: uuid.UUID, last_day: date) -> list[tupl
         .subquery()
     )
     event = aliased(PetEvent, latest)
-    rows = db.execute(
+    return (
         select(event, Pet.name)
         .join(Pet, (Pet.id == event.pet_id) & (Pet.user_id == event.user_id))
         .where(event.next_due_on.is_not(None), event.next_due_on <= last_day)
         .order_by(event.next_due_on.asc(), _sortable_name().asc(), event.id.asc())
-    ).all()
+    )
+
+
+def list_reminders(
+    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None
+) -> list[tuple[PetEvent, str]]:
+    """The reminders of `_reminders` (the first `limit`, or all), each with the pet name."""
+    rows = db.execute(_reminders(user_id, last_day).limit(limit)).all()
     return [(row[0], row[1]) for row in rows]
+
+
+def count_reminders(db: Session, user_id: uuid.UUID, last_day: date) -> int:
+    """How many reminders `list_reminders` returns without a limit."""
+    reminders = _reminders(user_id, last_day).order_by(None).subquery()
+    return db.scalar(select(func.count()).select_from(reminders)) or 0

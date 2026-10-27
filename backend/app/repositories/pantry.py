@@ -28,6 +28,18 @@ def expires_by_condition(last_day: date) -> ColumnElement[bool]:
     return PantryItem.expires_on <= last_day
 
 
+def expiring_soon_condition(today: date, last_day: date) -> ColumnElement[bool]:
+    """Expires by `last_day` but is not expired on `today` (the "expiring soon" alert)."""
+    return expires_by_condition(last_day) & ~expired_condition(today)
+
+
+@dataclass(frozen=True)
+class AlertCounts:
+    low_stock: int
+    expired: int
+    expiring_soon: int
+
+
 @dataclass(frozen=True)
 class PantryFilters:
     """Resolved list filters. Empty sequences and None mean "no filter"."""
@@ -143,26 +155,58 @@ def list_for_user(
     return list(items), total
 
 
-def list_low_stock(db: Session, user_id: uuid.UUID) -> list[PantryItem]:
-    """Every low-stock item of the user, by name (pt-BR) and id."""
+def list_low_stock(db: Session, user_id: uuid.UUID, limit: int | None = None) -> list[PantryItem]:
+    """The user's low-stock items (the first `limit`, or all), by name (pt-BR) and id."""
     return list(
         db.scalars(
             select(PantryItem)
             .where(PantryItem.user_id == user_id, low_stock_condition())
             .order_by(*_order_by(PantrySort.NAME))
+            .limit(limit)
+        ).all()
+    )
+
+
+def _list_by_expiry(
+    db: Session, user_id: uuid.UUID, condition: ColumnElement[bool], limit: int | None
+) -> list[PantryItem]:
+    return list(
+        db.scalars(
+            select(PantryItem)
+            .where(PantryItem.user_id == user_id, condition)
+            .order_by(PantryItem.expires_on.asc(), _sortable(PantryItem.name).asc(), PantryItem.id.asc())
+            .limit(limit)
         ).all()
     )
 
 
 def list_expiring_by(db: Session, user_id: uuid.UUID, last_day: date) -> list[PantryItem]:
     """Every item expiring on or before `last_day` (expired ones included), by expiry date, name, id."""
-    return list(
-        db.scalars(
-            select(PantryItem)
-            .where(PantryItem.user_id == user_id, expires_by_condition(last_day))
-            .order_by(PantryItem.expires_on.asc(), _sortable(PantryItem.name).asc(), PantryItem.id.asc())
-        ).all()
-    )
+    return _list_by_expiry(db, user_id, expires_by_condition(last_day), None)
+
+
+def list_expired(db: Session, user_id: uuid.UUID, today: date, limit: int) -> list[PantryItem]:
+    """The first `limit` expired items, in the order of `list_expiring_by`."""
+    return _list_by_expiry(db, user_id, expired_condition(today), limit)
+
+
+def list_expiring_soon(
+    db: Session, user_id: uuid.UUID, today: date, last_day: date, limit: int
+) -> list[PantryItem]:
+    """The first `limit` items expiring in [today, last_day], in the order of `list_expiring_by`."""
+    return _list_by_expiry(db, user_id, expiring_soon_condition(today, last_day), limit)
+
+
+def alert_counts(db: Session, user_id: uuid.UUID, today: date, last_day: date) -> AlertCounts:
+    """How many items are low on stock, expired and expiring soon, in one query."""
+    row = db.execute(
+        select(
+            func.count().filter(low_stock_condition()),
+            func.count().filter(expired_condition(today)),
+            func.count().filter(expiring_soon_condition(today, last_day)),
+        ).where(PantryItem.user_id == user_id)
+    ).one()
+    return AlertCounts(low_stock=row[0], expired=row[1], expiring_soon=row[2])
 
 
 def distinct_values(db: Session, user_id: uuid.UUID, column: InstrumentedAttribute[str | None]) -> list[str]:

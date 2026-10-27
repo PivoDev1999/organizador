@@ -135,20 +135,35 @@ def list_for_user(
     return list(items), total
 
 
-def list_upcoming(db: Session, user_id: uuid.UUID, last_day: date) -> list[Transaction]:
-    """Pending expenses due up to `last_day` (overdue ones included), by due date and id."""
+def _upcoming_conditions(user_id: uuid.UUID, last_day: date) -> list[ColumnElement[bool]]:
+    """Pending expenses of the user due up to `last_day` (overdue ones included)."""
+    return [
+        Transaction.user_id == user_id,
+        Transaction.type == TransactionType.EXPENSE.value,
+        Transaction.paid_at.is_(None),
+        Transaction.due_date <= last_day,
+    ]
+
+
+def list_upcoming(
+    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None
+) -> list[Transaction]:
+    """Pending expenses due up to `last_day` (overdue ones included; the first `limit`, or all), by due
+    date and id."""
     return list(
         db.scalars(
             select(Transaction)
-            .where(
-                Transaction.user_id == user_id,
-                Transaction.type == TransactionType.EXPENSE.value,
-                Transaction.paid_at.is_(None),
-                Transaction.due_date <= last_day,
-            )
+            .where(*_upcoming_conditions(user_id, last_day))
             .order_by(Transaction.due_date.asc(), Transaction.id.asc())
+            .limit(limit)
         ).all()
     )
+
+
+def count_upcoming(db: Session, user_id: uuid.UUID, last_day: date) -> int:
+    """How many transactions `list_upcoming` returns without a limit."""
+    stmt = select(func.count()).select_from(Transaction).where(*_upcoming_conditions(user_id, last_day))
+    return db.scalar(stmt) or 0
 
 
 def _sums() -> list[ColumnElement]:

@@ -40,7 +40,8 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Arquivos (upload e download em streaming pela API, Garage via API S3; limpeza de órfãos com `python -m scripts.cleanup_orphans`)
   - [x] Ao apagar uma entidade (tarefa, pet etc.), apagar também os anexos em `files` e no Garage (a relação polimórfica não tem FK)
   - Melhoria futura: cota de armazenamento por usuário (soma de `files.size_bytes`), checada no upload
-- [ ] Painel (endpoint que agrega o resumo do dia)
+- [x] Painel (endpoint que agrega o resumo do dia: `GET /api/dashboard`)
+  - Alerta de orçamento, decidido com os valores exatos (sem o arredondamento do `percent_used` exibido): `warning` com gasto de 80% a 100% do orçamento (inclusive), `exceeded` com gasto maior que o orçamento; orçamento 0 com gasto conta como `exceeded`, sem gasto não alerta (`app/core/finance.py`)
 
 ## Fase 4 — Frontend
 - [ ] Projeto React + TS + Vite + Tailwind, login

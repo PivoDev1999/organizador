@@ -226,7 +226,17 @@ def list_reminders(db: Session, settings: Settings, user_id: uuid.UUID, within: 
     The series rule lives in `app.core.pet_care`; the repository runs its SQL twin.
     """
     today = _today(settings)
-    return [
-        PetReminder(event, pet_name, is_overdue(event.next_due_on, today))
-        for event, pet_name in pet_repo.list_reminders(db, user_id, today + timedelta(days=within))
-    ]
+    return _reminders(pet_repo.list_reminders(db, user_id, today + timedelta(days=within)), today)
+
+
+def _reminders(rows: list[tuple[PetEvent, str]], today: date) -> list[PetReminder]:
+    return [PetReminder(event, pet_name, is_overdue(event.next_due_on, today)) for event, pet_name in rows]
+
+
+def list_reminders_preview(
+    db: Session, user_id: uuid.UUID, today: date, within: int, limit: int
+) -> tuple[list[PetReminder], int]:
+    """The first `limit` reminders of `list_reminders` (same series rule and order), plus the total."""
+    last_day = today + timedelta(days=within)
+    reminders = _reminders(pet_repo.list_reminders(db, user_id, last_day, limit), today)
+    return reminders, pet_repo.count_reminders(db, user_id, last_day)

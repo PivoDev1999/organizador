@@ -61,11 +61,15 @@ def list_due_today(db: Session, settings: Settings, user_id: uuid.UUID) -> list[
     "day 31 falls on the last day of the month" case) lives in one pure, tested function instead of
     being duplicated in SQL.
     """
-    today = clock.today(settings.timezone)
+    return list_due_on(db, user_id, clock.today(settings.timezone))
+
+
+def list_due_on(db: Session, user_id: uuid.UUID, day: date) -> list[DueRoutine]:
+    """Active routines scheduled for `day`, each with whether it is done on that day (see above)."""
     return [
         DueRoutine(routine, done)
-        for routine, done in routine_repo.list_active_with_done_flag(db, user_id, today)
-        if is_due(routine, today)
+        for routine, done in routine_repo.list_active_with_done_flag(db, user_id, day)
+        if is_due(routine, day)
     ]
 
 

@@ -18,6 +18,9 @@ if _test_db == _main_db or not _test_db.endswith("_test"):
 os.environ["POSTGRES_DB"] = _test_db
 # Minimum bcrypt cost keeps the suite fast; tests that check the production cost pass it explicitly.
 os.environ["BCRYPT_ROUNDS"] = "4"
+# The `db_session` fixture runs inside savepoints, where the dashboard cannot set its REPEATABLE READ
+# snapshot; production keeps it required. tests/test_dashboard_concurrency.py turns it back on.
+os.environ["DASHBOARD_REQUIRE_SNAPSHOT"] = "false"
 get_settings.cache_clear()
 
 import uuid  # noqa: E402
