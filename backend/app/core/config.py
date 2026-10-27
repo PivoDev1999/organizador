@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     app_timezone: str = "America/Sao_Paulo"
     # Internal knob: tests lower it to keep the suite fast. Keep the default in real deployments.
     bcrypt_rounds: int = Field(default=DEFAULT_BCRYPT_ROUNDS, ge=MIN_BCRYPT_ROUNDS, le=MAX_BCRYPT_ROUNDS)
+    # Internal knob: the dashboard refuses to answer (500) without its consistent snapshot. Only the test
+    # suite turns it off, because its session runs inside savepoints, where the snapshot cannot be set.
+    dashboard_require_snapshot: bool = True
 
     postgres_user: str
     postgres_password: str

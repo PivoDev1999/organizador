@@ -7,6 +7,7 @@ from app.api.middleware import FilesSecurityHeaders, UploadBodyLimit
 from app.api.routers import (
     auth,
     budgets,
+    dashboard,
     files,
     health,
     pantry,
@@ -55,3 +56,4 @@ app.include_router(pets.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
+app.include_router(dashboard.router, prefix="/api")
