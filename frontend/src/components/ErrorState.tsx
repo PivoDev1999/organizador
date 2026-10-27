@@ -5,9 +5,10 @@ export interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: () => void;
+  retryLabel?: string;
 }
 
-export function ErrorState({ title = "Algo deu errado", message, onRetry }: ErrorStateProps) {
+export function ErrorState({ title = "Algo deu errado", message, onRetry, retryLabel = "Tentar novamente" }: ErrorStateProps) {
   return (
     <div role="alert" className="flex flex-col items-center gap-2 px-4 py-8 text-center">
       <TriangleAlert aria-hidden="true" className="size-10 text-red-700" />
@@ -16,7 +17,7 @@ export function ErrorState({ title = "Algo deu errado", message, onRetry }: Erro
       {onRetry && (
         <Button variant="secondary" size="sm" onClick={onRetry} className="mt-2">
           <RefreshCw aria-hidden="true" className="size-4" />
-          Tentar novamente
+          {retryLabel}
         </Button>
       )}
     </div>

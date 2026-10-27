@@ -49,7 +49,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
   - Dependências novas: instalar com `npm install --before=<data de hoje − 14 dias>` para manter a regra das 2 semanas também nas indiretas
 - [ ] Uma tela por módulo
   - PDF inline com CSP sandbox: resolvido no frontend. O componente de anexos baixa com `fetch` + token e exibe um blob (`URL.createObjectURL`); o blob não carrega os headers da resposta (CSP `sandbox`), então o visualizador de PDF do Chrome não é bloqueado e a API mantém `default-src 'none'; sandbox`. A pré-visualização só aceita os tipos confirmados pela API com `?inline=true` (JPEG, PNG, GIF, WebP, PDF); o resto é baixado
-- [ ] Painel com gráficos
+- [x] Painel com gráficos (cards por módulo, ação rápida de rotina com atualização otimista, gráficos de despesas por categoria e uso dos orçamentos com Recharts carregados sob demanda; nível do orçamento com a mesma regra exata do backend em `src/lib/decimal.ts`)
 
 ## Fase 5 — Qualidade e instalação na rede local
 - [ ] GitHub Actions (lint + testes + build em todo PR)
