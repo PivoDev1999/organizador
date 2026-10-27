@@ -46,6 +46,15 @@ class PantryAlerts:
     expiring_soon: list[PantryItemView]
 
 
+@dataclass(frozen=True)
+class PantryAlertsPreview:
+    """`PantryAlerts` cut to the first items of each list, each with the full total."""
+
+    low_stock: tuple[list[PantryItemView], int]
+    expired: tuple[list[PantryItemView], int]
+    expiring_soon: tuple[list[PantryItemView], int]
+
+
 def _view(item: PantryItem, today: date) -> PantryItemView:
     return PantryItemView(item, low_stock=is_low_stock(item), expired=is_expired(item, today))
 
@@ -171,6 +180,30 @@ def get_alerts(db: Session, settings: Settings, user_id: uuid.UUID, expiring_wit
         low_stock=low_stock,
         expired=[view for view in by_expiry if view.expired],
         expiring_soon=[view for view in by_expiry if not view.expired],
+    )
+
+
+def get_alerts_preview(
+    db: Session, user_id: uuid.UUID, today: date, expiring_within: int, limit: int
+) -> PantryAlertsPreview:
+    """The alerts of `get_alerts` (same rules and order), up to `limit` items per list plus each total.
+
+    Counted in one query and each list limited in SQL (four queries in all), so a full pantry is never
+    loaded just to show its first items.
+    """
+    last_day = today + timedelta(days=expiring_within)
+    counts = pantry_repo.alert_counts(db, user_id, today, last_day)
+
+    def views(items: list[PantryItem]) -> list[PantryItemView]:
+        return [_view(item, today) for item in items]
+
+    return PantryAlertsPreview(
+        low_stock=(views(pantry_repo.list_low_stock(db, user_id, limit)), counts.low_stock),
+        expired=(views(pantry_repo.list_expired(db, user_id, today, limit)), counts.expired),
+        expiring_soon=(
+            views(pantry_repo.list_expiring_soon(db, user_id, today, last_day, limit)),
+            counts.expiring_soon,
+        ),
     )
 
 
