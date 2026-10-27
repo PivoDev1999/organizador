@@ -44,9 +44,11 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
   - Alerta de orçamento, decidido com os valores exatos (sem o arredondamento do `percent_used` exibido): `warning` com gasto de 80% a 100% do orçamento (inclusive), `exceeded` com gasto maior que o orçamento; orçamento 0 com gasto conta como `exceeded`, sem gasto não alerta (`app/core/finance.py`)
 
 ## Fase 4 — Frontend
-- [ ] Projeto React + TS + Vite + Tailwind, login
+- [x] Projeto React + TS + Vite + Tailwind, login
+  - Pendência: a partir de 29/10/2026, subir `undici` para 7.30.1 (via `overrides`) — vulnerabilidade alta só no ambiente de testes (jsdom), fora do bundle
+  - Dependências novas: instalar com `npm install --before=<data de hoje − 14 dias>` para manter a regra das 2 semanas também nas indiretas
 - [ ] Uma tela por módulo
-  - Verificar PDF inline no Chrome com CSP sandbox; se o visualizador for bloqueado, servir PDF sem `sandbox` (mantendo `default-src 'none'`) ou abrir como blob no frontend
+  - PDF inline com CSP sandbox: resolvido no frontend. O componente de anexos baixa com `fetch` + token e exibe um blob (`URL.createObjectURL`); o blob não carrega os headers da resposta (CSP `sandbox`), então o visualizador de PDF do Chrome não é bloqueado e a API mantém `default-src 'none'; sandbox`. A pré-visualização só aceita os tipos confirmados pela API com `?inline=true` (JPEG, PNG, GIF, WebP, PDF); o resto é baixado
 - [ ] Painel com gráficos
 
 ## Fase 5 — Qualidade e instalação na rede local

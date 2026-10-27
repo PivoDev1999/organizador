@@ -64,6 +64,10 @@ docker-compose.yml   .env.example   docs/
 - Testes: `cd backend && pytest` (usa o banco `POSTGRES_TEST_DB`)
 - Lint: `cd backend && ruff check . && ruff format --check .`
 - API local: `cd backend && uvicorn app.main:app --reload --port $API_PORT` (docs em `http://localhost:$API_PORT/api/docs`)
+- Frontend, dependências: `cd frontend && npm ci`
+- Frontend dev: `cd frontend && npm run dev` (abre em `http://localhost:5173`; proxy de `/api` para a API em `API_PORT`)
+- Frontend, tipos da API: `cd frontend && npm run api:types` (gera `src/api/schema.d.ts`; sem a API no ar, usa `openapi/openapi.json`)
+- Frontend, testes/lint/build: `cd frontend && npm test && npm run lint && npm run build`
 
 ## Fluxo de trabalho
 - Uma branch por funcionalidade (`feat/tasks-crud`), commits pequenos no padrão Conventional Commits.
