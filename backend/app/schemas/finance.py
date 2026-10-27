@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Self
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, model_validator
 
-from app.core.finance import MIN_DUE_DATE, MIN_PAID_ON, TransactionStatus
+from app.core.finance import MIN_DUE_DATE, MIN_PAID_ON, BudgetAlertLevel, TransactionStatus
 from app.models.finance import TransactionSort, TransactionType
 from app.schemas.common import (
     DbText,
@@ -22,7 +22,7 @@ from app.schemas.common import (
 
 if TYPE_CHECKING:  # services import this module: no runtime import back
     from app.core.finance import MonthSummary
-    from app.services.budget import BudgetCopyResult, BudgetView
+    from app.services.budget import BudgetAlert, BudgetCopyResult, BudgetView
     from app.services.transaction import TransactionView
 
 # Column sizes of transactions and budgets.
@@ -245,13 +245,32 @@ class CategoryTotalsRead(TotalsRead):
     category: str = Field(description="Grafia da transação criada mais recentemente do grupo.")
 
 
-class SummaryRead(BaseModel):
+def _month_fields(summary: "MonthSummary") -> dict:
+    return {
+        "month": summary.month,
+        "income": summary.income,
+        "expense": summary.expense,
+        "balance": {"total": summary.balance_total, "paid": summary.balance_paid},
+    }
+
+
+class MonthTotalsRead(BaseModel):
+    """Totals of the month (accrual basis), without the breakdown by category."""
+
     model_config = ConfigDict(from_attributes=True)
 
     month: YearMonth
     income: TotalsRead
     expense: TotalsRead
     balance: BalanceRead
+
+    @classmethod
+    def of(cls, summary: "MonthSummary") -> Self:
+        """Build from the service summary (dataclasses read via attributes) plus the computed balance."""
+        return cls.model_validate(_month_fields(summary), from_attributes=True)
+
+
+class SummaryRead(MonthTotalsRead):
     by_category: list[CategoryTotalsRead] = Field(
         description=(
             "Totais por tipo e categoria (sem diferenciar maiúsculas): despesas primeiro, depois "
@@ -263,14 +282,7 @@ class SummaryRead(BaseModel):
     def of(cls, summary: "MonthSummary") -> Self:
         """Build from the service summary (dataclasses read via attributes) plus the computed balance."""
         return cls.model_validate(
-            {
-                "month": summary.month,
-                "income": summary.income,
-                "expense": summary.expense,
-                "balance": {"total": summary.balance_total, "paid": summary.balance_paid},
-                "by_category": summary.by_category,
-            },
-            from_attributes=True,
+            {**_month_fields(summary), "by_category": summary.by_category}, from_attributes=True
         )
 
 
@@ -318,6 +330,20 @@ class BudgetRead(BaseModel):
             remaining=view.remaining,
             percent_used=view.percent_used,
         )
+
+
+class BudgetAlertRead(BudgetRead):
+    level: BudgetAlertLevel = Field(
+        description=(
+            "Calculado com os valores exatos, sem arredondar. warning: gasto de 80% a 100% do orçamento "
+            "(inclusive). exceeded: gasto maior que o orçamento, ou qualquer gasto "
+            "num orçamento de 0."
+        )
+    )
+
+    @classmethod
+    def of_alert(cls, alert: "BudgetAlert") -> Self:
+        return cls(**BudgetRead.of(alert.view).model_dump(), level=alert.level)
 
 
 class BudgetCopyQuery(BaseModel):
