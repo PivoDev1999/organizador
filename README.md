@@ -111,6 +111,12 @@ uvicorn app.main:app --reload --port 8000
 As portas vêm do `.env`. Postgres, Garage e Adminer ficam presos em `127.0.0.1` de propósito, e só o
 proxy reverso (Fase 5) vai ficar exposto na rede local.
 
+O painel do dia sai em `GET /api/dashboard?within=7&limit=5`: tarefas atrasadas e de hoje, rotinas,
+alertas da despensa, mercado, lembretes dos pets, contas a pagar, totais do mês e orçamentos em alerta
+(`warning` com gasto de 80% a 100% do orçamento, `exceeded` acima dele, comparando os valores exatos),
+com as mesmas regras dos endpoints de cada módulo, lidos todos no mesmo instante (uma transação só de
+leitura, REPEATABLE READ).
+
 ## Testes
 
 > O backend lê o `.env` da raiz do repositório. Para usar outro arquivo, defina a variável de ambiente
