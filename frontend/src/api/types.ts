@@ -22,6 +22,37 @@ export type Budget = Schemas["BudgetRead"];
 export type BudgetAlert = Schemas["BudgetAlertRead"];
 export type BudgetAlertLevel = Schemas["BudgetAlertLevel"];
 
+export type TaskStatus = Schemas["TaskStatus"];
+export type TaskPriority = Schemas["TaskPriority"];
+export type TaskSort = Schemas["TaskSort"];
+export type TaskCreate = Schemas["TaskCreate"];
+export type TaskUpdate = Schemas["TaskUpdate"];
+
+export type Routine = Schemas["RoutineRead"];
+export type RoutineFrequency = Schemas["RoutineFrequency"];
+export type RoutineCreate = Schemas["RoutineCreate"];
+export type RoutineUpdate = Schemas["RoutineUpdate"];
+export type RoutineLog = Schemas["RoutineLogRead"];
+
+export type PantrySort = Schemas["PantrySort"];
+export type PantryAlerts = Schemas["PantryAlertsRead"];
+export type PantryItemCreate = Schemas["PantryItemCreate"];
+export type PantryItemUpdate = Schemas["PantryItemUpdate"];
+
+export type ShoppingItem = Schemas["ShoppingItemRead"];
+export type ShoppingPurchase = Schemas["ShoppingPurchaseRead"];
+export type ShoppingSummary = Schemas["ShoppingSummaryRead"];
+export type ShoppingItemCreate = Schemas["ShoppingItemCreate"];
+export type ShoppingItemUpdate = Schemas["ShoppingItemUpdate"];
+
+/** Same shape as every `Page_*Read_` of the API: one page plus the total of matches. */
+export interface Page<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export type HttpMethod = "get" | "post" | "put" | "patch" | "delete";
 
 export type ApiPath = keyof paths;

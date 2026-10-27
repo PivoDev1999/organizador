@@ -60,3 +60,15 @@ export const demoUser = {
   is_active: true,
   created_at: "2026-10-01T12:00:00Z",
 };
+
+/** A one-page list response of the API. */
+export function pageOf<T>(items: T[]) {
+  return { items, total: items.length, limit: 20, offset: 0 };
+}
+
+export const STAMP = "2026-10-20T12:00:00Z";
+
+/** JSON body of a recorded request. */
+export function jsonBody(request: RecordedRequest | undefined): unknown {
+  return typeof request?.body === "string" ? JSON.parse(request.body) : undefined;
+}

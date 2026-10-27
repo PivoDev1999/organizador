@@ -3,7 +3,7 @@ import type { Dashboard, RoutineToday } from "@/api/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { SectionCard } from "@/components/SectionCard";
 import { cn } from "@/lib/cn";
-import { useLogRoutineDone } from "./queries";
+import { useLogRoutineDone } from "@/hooks/useRoutineLog";
 
 function RoutineRow({ routine, onDone }: { routine: RoutineToday; onDone: (routine: RoutineToday) => void }) {
   const done = routine.done_today;
