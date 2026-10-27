@@ -45,6 +45,23 @@ export type ShoppingSummary = Schemas["ShoppingSummaryRead"];
 export type ShoppingItemCreate = Schemas["ShoppingItemCreate"];
 export type ShoppingItemUpdate = Schemas["ShoppingItemUpdate"];
 
+export type Pet = Schemas["PetRead"];
+export type PetSort = Schemas["PetSort"];
+export type PetCreate = Schemas["PetCreate"];
+export type PetUpdate = Schemas["PetUpdate"];
+export type PetEvent = Schemas["PetEventRead"];
+export type PetEventCreate = Schemas["PetEventCreate"];
+export type PetEventUpdate = Schemas["PetEventUpdate"];
+
+export type TransactionType = Schemas["TransactionType"];
+export type TransactionStatus = Schemas["TransactionStatus"];
+export type TransactionSort = Schemas["TransactionSort"];
+export type TransactionCreate = Schemas["TransactionCreate"];
+export type TransactionUpdate = Schemas["TransactionUpdate"];
+export type BudgetCreate = Schemas["BudgetCreate"];
+export type BudgetUpdate = Schemas["BudgetUpdate"];
+export type BudgetCopy = Schemas["BudgetCopyRead"];
+
 /** Same shape as every `Page_*Read_` of the API: one page plus the total of matches. */
 export interface Page<T> {
   items: T[];

@@ -5,6 +5,9 @@ import type {
   TaskPriority,
   TaskSort,
   TaskStatus,
+  TransactionSort,
+  TransactionStatus,
+  TransactionType,
 } from "@/api/types";
 import type { Tone } from "@/components/tones";
 
@@ -53,6 +56,23 @@ export const WEEKDAY_LONG = ["domingo", "segunda", "terça", "quarta", "quinta",
 export const PANTRY_SORT_LABELS: Partial<Record<PantrySort, string>> = {
   name: "Nome",
   expires_on: "Validade",
+};
+
+export const TRANSACTION_TYPE_LABELS: Record<TransactionType, string> = {
+  expense: "Despesa",
+  income: "Receita",
+};
+
+export const TRANSACTION_STATUS_LABELS: Record<TransactionStatus, string> = {
+  pending: "Pendente",
+  paid: "Paga",
+  overdue: "Atrasada",
+};
+
+export const TRANSACTION_SORT_LABELS: Partial<Record<TransactionSort, string>> = {
+  due_date: "Vencimento",
+  "-amount": "Maior valor",
+  amount: "Menor valor",
 };
 
 /** Typed keys of a label map (Object.keys returns string[]). */

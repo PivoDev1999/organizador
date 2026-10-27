@@ -17,10 +17,11 @@ function Row({ label, value, detail, negative = false }: { label: string; value:
   );
 }
 
-export function MonthCard({ month }: { month: MonthTotals }) {
+/** Totals of a month. `link` adds "Ver finanças" (the dashboard); the finance screen leaves it out. */
+export function MonthCard({ month, link = true }: { month: MonthTotals; link?: boolean }) {
   const { income, expense, balance } = month;
   return (
-    <SectionCard title="Resumo do mês" icon={Wallet} to="/financas" linkLabel="Ver finanças">
+    <SectionCard title="Resumo do mês" icon={Wallet} to={link ? "/financas" : undefined} linkLabel="Ver finanças">
       <dl className="divide-y divide-slate-100">
         <Row label="Receitas" value={income.total} detail={`recebido ${formatMoney(income.paid)} · a receber ${formatMoney(income.pending)}`} />
         <Row label="Despesas" value={expense.total} detail={`pago ${formatMoney(expense.paid)} · a pagar ${formatMoney(expense.pending)}`} />

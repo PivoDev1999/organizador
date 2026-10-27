@@ -57,7 +57,7 @@ export function Tabs<T extends string>({ label, tabs, value, onChange, children 
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(tab.value)}
               className={cn(
-                "-mb-px min-h-11 border-b-2 px-4 font-medium",
+                "-mb-px min-h-11 border-b-2 px-3 font-medium sm:px-4",
                 selected ? "border-brand-700 text-brand-800" : "border-transparent text-slate-700 hover:text-slate-900",
               )}
             >

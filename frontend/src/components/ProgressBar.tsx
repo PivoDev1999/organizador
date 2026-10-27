@@ -8,9 +8,11 @@ export interface ProgressBarProps {
   /** Text read instead of the bare numbers, e.g. "2 de 5 feitas". */
   valueText?: string;
   className?: string;
+  /** Color of the filled part (default: the brand color). */
+  barClassName?: string;
 }
 
-export function ProgressBar({ value, max, label, valueText, className }: ProgressBarProps) {
+export function ProgressBar({ value, max, label, valueText, className, barClassName = "bg-brand-600" }: ProgressBarProps) {
   const percent = max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
     <div
@@ -22,7 +24,7 @@ export function ProgressBar({ value, max, label, valueText, className }: Progres
       aria-valuetext={valueText}
       className={cn("h-2.5 w-full overflow-hidden rounded-full bg-slate-200", className)}
     >
-      <div className="h-full rounded-full bg-brand-600 transition-[width]" style={{ width: `${percent}%` }} />
+      <div className={cn("h-full rounded-full transition-[width]", barClassName)} style={{ width: `${percent}%` }} />
     </div>
   );
 }
