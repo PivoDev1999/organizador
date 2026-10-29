@@ -35,7 +35,10 @@ include = ["app*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: needs real external services (Garage); run with -m integration, skip with -m \"not integration\"",
+]
 
 [tool.ruff]
 line-length = 110

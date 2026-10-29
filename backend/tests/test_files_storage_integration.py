@@ -15,6 +15,8 @@ from botocore.exceptions import EndpointConnectionError
 from app.core.config import get_settings
 from app.core.storage import ObjectNotFound, S3Storage, StorageError
 
+pytestmark = pytest.mark.integration
+
 BIG = 9 * 1024 * 1024  # above the multipart threshold (8 MiB)
 
 
