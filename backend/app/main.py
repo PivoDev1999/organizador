@@ -8,6 +8,7 @@ from app.api.routers import (
     auth,
     budgets,
     dashboard,
+    docs,
     files,
     health,
     pantry,
@@ -40,7 +41,8 @@ def prepare_password_hashing(settings: Settings) -> None:
 settings = get_settings()
 prepare_password_hashing(settings)
 
-app = FastAPI(title=settings.app_name, docs_url="/api/docs", openapi_url="/api/openapi.json")
+# The default /docs page loads Swagger UI from a CDN: the docs router serves it locally instead.
+app = FastAPI(title=settings.app_name, docs_url=None, redoc_url=None, openapi_url=docs.OPENAPI_URL)
 register_exception_handlers(app)
 # The last one added runs first: the security headers also cover the early 413 of the body limit.
 app.add_middleware(UploadBodyLimit)
@@ -57,3 +59,4 @@ app.include_router(transactions.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(docs.router)
