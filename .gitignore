@@ -17,3 +17,5 @@ backups/*
 frontend/dist/
 frontend/coverage/
 *.tsbuildinfo
+# Local, temporary compose overrides (e.g. opening the registration for a moment)
+docker-compose.override.yml
