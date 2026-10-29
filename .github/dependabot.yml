@@ -2,6 +2,7 @@ version: 2
 
 # Every ecosystem waits 14 days after a release before proposing it (project rule: only versions
 # published at least two weeks ago). Security updates are not delayed by the cooldown.
+# Minor and patch updates come grouped in one weekly PR per ecosystem; majors come one by one.
 updates:
   - package-ecosystem: pip
     directory: /backend
@@ -9,6 +10,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 14
+    groups:
+      backend-minor-patch:
+        update-types: [minor, patch]
 
   - package-ecosystem: npm
     directory: /frontend
@@ -16,6 +20,13 @@ updates:
       interval: weekly
     cooldown:
       default-days: 14
+    groups:
+      frontend-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Types must follow the installed Node major (24).
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
@@ -23,19 +34,25 @@ updates:
       interval: weekly
     cooldown:
       default-days: 14
+    groups:
+      actions-minor-patch:
+        update-types: [minor, patch]
 
-  # Dockerfiles (they arrive with feat/production-stack).
-  - package-ecosystem: docker
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 14
-
-  # Images used by docker-compose.yml (postgres, garage, python, adminer).
+  # Images used by docker-compose.yml (postgres, garage, python, adminer). The `docker` ecosystem for
+  # Dockerfiles is added together with them (feat/production-stack).
   - package-ecosystem: docker-compose
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 14
+    groups:
+      images-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # A new PostgreSQL major cannot open the existing data volume: it needs a planned dump/restore.
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]
+      # The project is pinned to Python 3.12.
+      - dependency-name: python
+        versions: [">=3.13"]
