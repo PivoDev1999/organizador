@@ -2,7 +2,7 @@ name: organizador
 
 services:
   postgres:
-    image: postgres:16.10-alpine
+    image: postgres:18.4-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
