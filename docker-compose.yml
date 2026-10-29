@@ -59,7 +59,7 @@ services:
     command: ["python", "-u", "/init.py"]
 
   adminer:
-    image: adminer:5.4.1
+    image: adminer:5.5.0
     restart: unless-stopped
     depends_on:
       postgres:
