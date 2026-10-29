@@ -52,18 +52,16 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Painel com gráficos (cards por módulo, ação rápida de rotina com atualização otimista, gráficos de despesas por categoria e uso dos orçamentos com Recharts carregados sob demanda; nível do orçamento com a mesma regra exata do backend em `src/lib/decimal.ts`)
 
 ## Fase 5 — Qualidade e instalação na rede local
-- [x] GitHub Actions (lint + testes + build em todo PR)
-  - O build das imagens entra com os Dockerfiles (`feat/production-stack`); por enquanto o CI valida o `docker-compose.yml`
-- [ ] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx/Caddy) na porta 80
-  - Limitar também no proxy o corpo do `POST /api/files` (ex.: `client_max_body_size` um pouco acima de `MAX_UPLOAD_MB`), como segunda barreira ao limite que a API já aplica
-- [ ] Servir os assets do Swagger (`/api/docs`) localmente: hoje vêm de CDN e a página não funciona sem internet
-- [ ] Limite de tentativas no `POST /api/auth/login` no proxy (ex.: `limit_req` do Nginx / `rate_limit` do Caddy)
-- [ ] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
+- [x] GitHub Actions (lint + testes + build em todo PR, incluindo o build das imagens Docker)
+- [x] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx) na porta 80
+  - [x] Limite no proxy do corpo do `POST /api/files` (`MAX_UPLOAD_MB` + 2 MB), como segunda barreira ao limite que a API já aplica; 1 MB no resto de `/api`
+- [x] Servir os assets do Swagger (`/api/docs`) localmente (pacote `swagger-ui-dist`, sem CDN)
+- [x] Limite de tentativas no `POST /api/auth/login` no proxy (`limit_req` do Nginx: 5 por minuto por IP, 429)
+- [x] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
 - [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
 - [ ] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
 - [ ] Script de restauração de backup testado
 - [ ] Logs centralizados e página `/health` mostrando o status dos serviços
-- [ ] Instalar como app no celular (PWA)
 
 ## Fase 6 — IA (diferencial de portfólio)
 - [ ] Modelo local com Ollama (funciona sem internet), API externa como opcional
