@@ -10,8 +10,9 @@ from sqlalchemy import URL
 
 from app.core.security import DEFAULT_BCRYPT_ROUNDS, MAX_BCRYPT_ROUNDS, MIN_BCRYPT_ROUNDS
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 # By default the single .env at the repository root, shared with docker compose.
-ENV_FILE = Path(os.environ.get("ENV_FILE") or Path(__file__).resolve().parents[3] / ".env")
+ENV_FILE = Path(os.environ.get("ENV_FILE") or REPO_ROOT / ".env")
 
 PLACEHOLDER = "change-me"
 SECRET_FIELDS = ("secret_key", "postgres_password", "s3_secret_access_key")
@@ -51,6 +52,10 @@ class Settings(BaseSettings):
     max_upload_mb: int = Field(default=20, ge=1, le=1024)
 
     seed_user_password: str | None = None
+
+    # Swagger UI assets (npm package swagger-ui-dist, a frontend devDependency), served by the API under
+    # /api/docs-assets in development. In the Docker stack Nginx serves them and this folder does not exist.
+    swagger_ui_dir: Path = REPO_ROOT / "frontend" / "node_modules" / "swagger-ui-dist"
 
     @field_validator("app_timezone")
     @classmethod

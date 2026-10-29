@@ -43,6 +43,12 @@ class NotAuthenticated(UnauthorizedError):
 def register(db: Session, settings: Settings, data: UserCreate) -> User:
     if not settings.allow_registration:
         raise RegistrationDisabled
+    return create_user(db, settings, data)
+
+
+def create_user(db: Session, settings: Settings, data: UserCreate) -> User:
+    """Create and commit an account. Ignores ALLOW_REGISTRATION: for trusted callers only (the
+    server-side `scripts.create_user` command and `register`, which checks the flag first)."""
     if user_repo.get_by_email(db, data.email) is not None:
         raise EmailAlreadyRegistered
 

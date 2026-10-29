@@ -1,0 +1,21 @@
+#!/bin/sh
+# Sourced by the nginx image entrypoint before the templates are rendered (20-envsubst-on-templates.sh).
+# Body limit of POST /api/files = MAX_UPLOAD_MB + 2 MB: room for the multipart envelope. The API stays the
+# real check (exact limit per file); this is the second barrier, at the edge.
+# Sourced, not executed: no `set -e` here (it would leak into the image entrypoint).
+
+# Same range as the API (1 to 1024). No leading zero: "08" would be read as octal by $(( )).
+_max_upload_mb="${MAX_UPLOAD_MB:-20}"
+case "$_max_upload_mb" in
+    [1-9] | [1-9][0-9] | [1-9][0-9][0-9] | [1-9][0-9][0-9][0-9]) _upload_ok=1 ;;
+    *) _upload_ok=0 ;;
+esac
+if [ "$_upload_ok" -eq 0 ] || [ "$_max_upload_mb" -gt 1024 ]; then
+    echo "upload-limit: MAX_UPLOAD_MB must be an integer between 1 and 1024" >&2
+    exit 1
+fi
+
+export NGINX_MAX_UPLOAD_MB="$_max_upload_mb"
+export NGINX_FILES_MAX_BODY="$(( _max_upload_mb + 2 ))m"
+unset _max_upload_mb _upload_ok
+echo "upload-limit: client_max_body_size for /api/files = ${NGINX_FILES_MAX_BODY}"

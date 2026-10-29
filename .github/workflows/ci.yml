@@ -114,19 +114,22 @@ jobs:
         run: npm run build
 
   docker:
-    name: Docker Compose (config)
+    name: Docker (compose config + image builds)
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # For now only the compose file is validated: the build of the images comes with the
-      # Dockerfiles (feat/production-stack).
       - name: Create .env from .env.example
         run: sed 's/=change-me$/=ci-placeholder-value/' .env.example > .env
 
       - name: Validate docker-compose.yml
         run: docker compose config -q
+
+      # Same images `docker compose up -d --build` builds on the server (backend/Dockerfile and
+      # frontend/Dockerfile). Built locally only: nothing is pushed to a registry.
+      - name: Build the api and web images
+        run: docker compose build api web

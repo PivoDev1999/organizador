@@ -1,0 +1,10 @@
+# Build context of the web image: sources, configs and the lockfile. Dependencies are installed with npm ci.
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+*.log
+.env
+.env.*
+Dockerfile
+.dockerignore
