@@ -1,0 +1,14 @@
+# Only what the image needs: pyproject.toml, alembic.ini, alembic/, app/, scripts/, docker-entrypoint.sh.
+.venv/
+tests/
+**/__pycache__/
+**/*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+Dockerfile
+.dockerignore
