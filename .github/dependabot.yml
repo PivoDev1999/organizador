@@ -41,8 +41,7 @@ updates:
       actions-minor-patch:
         update-types: [minor, patch]
 
-  # Images used by docker-compose.yml (postgres, garage, python, adminer). The `docker` ecosystem for
-  # Dockerfiles is added together with them (feat/production-stack).
+  # Images used by docker-compose.yml (postgres, garage, python, adminer).
   - package-ecosystem: docker-compose
     directory: /
     schedule:
@@ -59,3 +58,27 @@ updates:
       # The project is pinned to Python 3.12.
       - dependency-name: python
         versions: [">=3.13"]
+
+  # Base images of the Dockerfiles: python (backend), node and nginx (frontend). Tags and digests are
+  # updated together.
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      dockerfiles-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # The project is pinned to Python 3.12.
+      - dependency-name: python
+        versions: [">=3.13"]
+      # Node 24 is the LTS used by the CI and by the build stage; 25+ only when planned.
+      - dependency-name: node
+        versions: [">=25"]
+      # Stay on the stable branch (1.30.x): 1.31 is nginx's mainline.
+      - dependency-name: nginx
+        versions: [">=1.31"]
