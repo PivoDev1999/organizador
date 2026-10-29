@@ -15,7 +15,7 @@ dependencies = [
     "python-multipart==0.0.32",
     "boto3==1.43.112",
     # Transitive pins: keep boto3's companions on releases at least two weeks old.
-    "botocore==1.43.112",
+    "botocore==1.43.114",
     "s3transfer==0.19.2",
 ]
 
