@@ -16,6 +16,16 @@ interface LoginForm {
 
 const INVALID_CREDENTIALS = "E-mail ou senha inválidos.";
 const LOGIN_FAILED = "Não foi possível entrar agora. Verifique a conexão e tente novamente.";
+// The reverse proxy limits login attempts per IP and answers 429 past the limit.
+const TOO_MANY_ATTEMPTS = "Muitas tentativas. Aguarde um minuto e tente de novo.";
+
+function loginErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiError)) return LOGIN_FAILED;
+  // 401 (wrong credentials) and 422 (malformed input) get the same generic message on purpose.
+  if (error.status === 401 || error.status === 422) return INVALID_CREDENTIALS;
+  if (error.status === 429) return TOO_MANY_ATTEMPTS;
+  return LOGIN_FAILED;
+}
 
 export function LoginPage() {
   useDocumentTitle("Entrar");
@@ -40,9 +50,7 @@ export function LoginPage() {
       await login(email.trim(), password);
       navigate(next, { replace: true });
     } catch (error) {
-      // 401 (wrong credentials) and 422 (malformed input) get the same generic message on purpose.
-      const invalid = error instanceof ApiError && (error.status === 401 || error.status === 422);
-      setFormError(invalid ? INVALID_CREDENTIALS : LOGIN_FAILED);
+      setFormError(loginErrorMessage(error));
       resetField("password");
       setFocus("password");
     }

@@ -48,6 +48,20 @@ describe("authentication", () => {
     expect(getToken()).toBeNull();
   });
 
+  it("asks to wait when the proxy rate-limits the login (429)", async () => {
+    // Nginx answers the limit with its own HTML page, not the API's JSON.
+    mockApi({
+      "POST /api/auth/login": () =>
+        new Response("<html>429 Too Many Requests</html>", { status: 429, headers: { "Content-Type": "text/html" } }),
+    });
+    renderWithProviders(<App />, "/login");
+
+    await submitLogin("demo@organizador.local", "errada");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Muitas tentativas. Aguarde um minuto e tente de novo.");
+    expect(getToken()).toBeNull();
+  });
+
   it("on a 401 clears the token, goes to /login and returns to the original page after login", async () => {
     setToken("expired");
     mockApi({

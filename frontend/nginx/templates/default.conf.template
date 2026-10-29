@@ -1,0 +1,101 @@
+# Organizador site: the React build (SPA) and the reverse proxy of the API under /api/.
+# Rendered by the image entrypoint (envsubst, only ${NGINX_*} variables):
+# - NGINX_LOCAL_RESOLVERS: Docker's DNS server, from /etc/resolv.conf.
+# - NGINX_FILES_MAX_BODY:  MAX_UPLOAD_MB + 2 MB (see /docker-entrypoint.d/16-upload-limit.envsh).
+# - NGINX_MAX_UPLOAD_MB:   MAX_UPLOAD_MB, for the message of the 413.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    root /usr/share/nginx/html;
+
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+    set $api_upstream http://api:8000;
+
+    # --- SPA --------------------------------------------------------------------------------------------
+    # Any unknown path is a client-side route (/tarefas, /pets/<id>...): answer with index.html.
+    location / {
+        try_files $uri /index.html;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # index.html is never cached: it points to the hashed assets of the current build.
+    location = /index.html {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+    }
+
+    # Vite output with a content hash in the name: cache for a year. A missing asset is a 404, never
+    # index.html (HTML served as a script would only hide the error).
+    location /assets/ {
+        try_files $uri =404;
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+    }
+
+    # --- API --------------------------------------------------------------------------------------------
+    location /api/ {
+        client_max_body_size 1m;
+        include /etc/nginx/snippets/proxy-api.conf;
+        include /etc/nginx/snippets/api-headers.conf;
+    }
+
+    # Brute-force limit on the login (see limit_req_zone in nginx.conf). 429 comes as JSON, like the API.
+    location = /api/auth/login {
+        limit_req zone=login burst=4 nodelay;
+        error_page 429 = @too_many_attempts;
+        client_max_body_size 1m;
+        include /etc/nginx/snippets/proxy-api.conf;
+        include /etc/nginx/snippets/api-headers.conf;
+    }
+
+    # 502/503/504 of every /api location (error_page in snippets/proxy-api.conf).
+    location @api_down {
+        default_type application/json;
+        include /etc/nginx/snippets/api-headers.conf;
+        add_header Cache-Control "no-store" always;
+        # Also covers /api/files, whose responses always carry the sandbox CSP of the API.
+        add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+        # error_page has no "=": the client gets the original code (502, 503 or 504) with this body.
+        return 200 '{"detail":"API indisponível. Tente de novo em instantes."}';
+    }
+
+    location @too_many_attempts {
+        default_type application/json;
+        add_header Retry-After "60" always;
+        include /etc/nginx/snippets/api-headers.conf;
+        return 429 '{"detail":"Muitas tentativas. Aguarde um minuto e tente de novo."}';
+    }
+
+    # Uploads and downloads of attachments. No add_header here: the API sends nosniff, the CSP sandbox and
+    # no-store on every /api/files response, and they pass through unchanged.
+    location = /api/files {
+        # MAX_UPLOAD_MB + 2 MB: second barrier, the API checks the exact size of the file.
+        client_max_body_size ${NGINX_FILES_MAX_BODY};
+        include /etc/nginx/snippets/files-proxy.conf;
+    }
+
+    location /api/files/ {
+        # MAX_UPLOAD_MB + 2 MB: second barrier, the API checks the exact size of the file.
+        client_max_body_size ${NGINX_FILES_MAX_BODY};
+        include /etc/nginx/snippets/files-proxy.conf;
+    }
+
+    # 413 above the edge limit, as JSON and with the same headers the API puts on /api/files responses.
+    location @file_too_large {
+        default_type application/json;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "default-src 'none'; sandbox" always;
+        add_header Cache-Control "private, no-store" always;
+        # Same message as the API's own 413.
+        return 413 '{"detail":"Arquivo maior que o limite de ${NGINX_MAX_UPLOAD_MB} MB."}';
+    }
+
+    # Swagger UI assets of /api/docs (copied from the npm package swagger-ui-dist): no CDN.
+    location /api/docs-assets/ {
+        alias /usr/share/nginx/docs-assets/;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Cache-Control "no-cache" always;
+    }
+}
