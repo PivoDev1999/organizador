@@ -1,0 +1,5 @@
+#!/bin/sh
+# Manual backup (same steps as the 03:00 one, retention included):
+#   docker compose exec backup backup-now          (service running)
+#   docker compose run --rm backup backup-now      (service stopped)
+exec python -m backuptool run --kind manual "$@"

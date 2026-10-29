@@ -1,0 +1,3 @@
+# Run by supercronic in the `backup` container, in the time zone of TZ (= APP_TIMEZONE).
+# Every day at 03:00: backup + GFS retention (7 daily, 4 weekly, 6 monthly).
+0 3 * * * python -m backuptool run --kind scheduled
