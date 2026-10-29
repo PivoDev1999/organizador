@@ -1,0 +1,41 @@
+version: 2
+
+# Every ecosystem waits 14 days after a release before proposing it (project rule: only versions
+# published at least two weeks ago). Security updates are not delayed by the cooldown.
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+
+  # Dockerfiles (they arrive with feat/production-stack).
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+
+  # Images used by docker-compose.yml (postgres, garage, python, adminer).
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
