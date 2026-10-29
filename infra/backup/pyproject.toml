@@ -1,0 +1,20 @@
+# Backup tool of the `backup` service (infra/backup/Dockerfile). Not installed as a package: the image
+# copies `backuptool/` and runs `python -m backuptool`. This file only configures pytest and ruff:
+#   cd infra/backup && pytest && ruff check . && ruff format --check .
+# (uses the backend virtualenv: ../../backend/.venv/bin/pytest; the tests need no Docker service)
+[project]
+name = "organizador-backup"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]

@@ -162,6 +162,58 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  # Daily backup at 03:00 (APP_TIMEZONE): pg_dump + copy of the files bucket to ./backups, GFS retention
+  # 7 daily + 4 weekly + 6 monthly (infra/backup/). Manual: `docker compose exec backup backup-now`.
+  # Restore: infra/backup/restore.sh. Only the internal network, no published port.
+  backup:
+    build: ./infra/backup
+    image: organizador-backup:local
+    restart: unless-stopped
+    logging: *default-logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+      garage-init:
+        condition: service_completed_successfully
+    # The backup files belong to this uid/gid (the owner of the repository by default), so they can be
+    # read and deleted without sudo.
+    user: "${BACKUP_UID:-1000}:${BACKUP_GID:-1000}"
+    # Explicit list: PostgreSQL and the S3 key of the app; never the Garage admin token or RPC secret.
+    environment:
+      TZ: ${APP_TIMEZONE:-America/Sao_Paulo}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      PGDATABASE: ${POSTGRES_DB:?set POSTGRES_DB in .env}
+      S3_ENDPOINT_URL: http://garage:3900
+      S3_REGION: ${S3_REGION:-garage}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env}
+      S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env}
+    volumes:
+      - ./backups:/backups
+    # Unhealthy when backups/last_success.json is more than 26 h old (a 03:00 run was missed or failed).
+    # Before the first run, a container up for less than 26 h counts as healthy (backuptool health).
+    healthcheck:
+      test: ["CMD", "python", "-m", "backuptool", "health"]
+      interval: 5m
+      timeout: 30s
+      start_period: 1m
+      start_interval: 5s
+      retries: 1
+    networks:
+      - default
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+      # Shadows the VOLUME declared by the postgres base image, so no anonymous volume is created.
+      - /var/lib/postgresql/data:size=1m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   default:
   # Only `web` and `api`: Nginx cannot reach Postgres, Garage or Adminer. Fixed subnet so uvicorn knows

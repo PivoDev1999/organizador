@@ -59,8 +59,10 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Limite de tentativas no `POST /api/auth/login` no proxy (`limit_req` do Nginx: 5 por minuto por IP, 429)
 - [x] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
 - [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
-- [ ] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
-- [ ] Script de restauração de backup testado
+- [x] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
+  - Serviço `backup` (03:00 em `APP_TIMEZONE`, supercronic), em `backups/AAAA-MM-DD_HHMMSS/`; retenção GFS 7 diários + 4 semanais + 6 mensais; `backups/last_success.json` para a observabilidade
+- [x] Script de restauração de backup testado
+  - `infra/backup/restore.sh` (com backup de segurança `pre-restore-*`); teste de ponta a ponta em `infra/backup/test_backup_restore.sh` (fora do CI: precisa do Garage)
 - [ ] Logs centralizados e página `/health` mostrando o status dos serviços
 
 ## Fase 6 — IA (diferencial de portfólio)

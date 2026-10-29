@@ -95,7 +95,7 @@ cp .env.example .env
 
 # 2. Build das imagens e subida de tudo
 docker compose up -d --build
-docker compose ps                   # api e web "healthy"; garage-init "exited (0)"
+docker compose ps                   # api e web "healthy", backup "running"; garage-init "exited (0)"
 
 # 3. Primeiro usuário (a senha é pedida no terminal, nunca vai na linha de comando)
 docker compose exec api python -m scripts.create_user --email voce@casa.local --name "Seu nome"
@@ -137,6 +137,7 @@ O que cada imagem faz:
 |---|---|---|
 | `api` | `backend/Dockerfile` (`python:3.12.15-slim-trixie`) | Ao subir: espera o Postgres, roda `alembic upgrade head` uma vez e inicia o `uvicorn` com 2 workers (`API_WORKERS`). Usuário sem privilégios (uid 10001), sistema de arquivos só leitura, sem porta publicada. O `/tmp` (onde os uploads ficam enquanto vão para o Garage) é um disco em RAM limitado a `API_TMP_SIZE` (padrão `256m`, uns 12 uploads simultâneos de 20 MB); se encher, só o upload em andamento falha. |
 | `web` | `frontend/Dockerfile` (build com `node:24.22.0-alpine3.24`, roda `nginx:1.30.6-alpine3.24`) | Serve o build do React e faz proxy de `/api/` para `http://api:8000`. Configuração em `frontend/nginx/`. O processo mestre do Nginx roda como root dentro do container (para abrir a porta 80 e trocar os workers para o usuário `nginx`), mas com as capacidades reduzidas ao mínimo (`cap_drop: ALL` + `CHOWN`, `SETGID`, `SETUID`, `NET_BIND_SERVICE`) e `no-new-privileges`. |
+| `backup` | `infra/backup/Dockerfile` (`postgres:16.10-alpine`, a mesma imagem do banco, + Python 3.12 com boto3 e `supercronic`) | Backup diário às 03:00 em `backups/` (ver [Backups](#backups)). Roda com o uid/gid `BACKUP_UID`/`BACKUP_GID` (padrão 1000), sistema de arquivos só leitura, sem nenhuma capacidade, só na rede interna e sem porta publicada; recebe só as variáveis do Postgres e a chave S3 do app. |
 
 Proteções no Nginx:
 
@@ -154,6 +155,206 @@ Proteções no Nginx:
   (`{"detail": "API indisponível. Tente de novo em instantes."}`), e o app continua carregando.
 - **Swagger sem internet:** `/api/docs` carrega o Swagger UI do pacote npm `swagger-ui-dist` (copiado na
   imagem do Nginx, em `/api/docs-assets/`), nunca de CDN.
+
+## Backups
+
+O serviço `backup` (sobe junto com o `docker compose up -d`) faz **todo dia às 03:00**, no fuso
+`APP_TIMEZONE`, um backup completo na pasta `backups/` da raiz do repositório:
+
+```
+backups/
+  2026-10-28_030000/          um backup completo (data e hora locais)
+    db.dump                   pg_dump -Fc do banco (formato custom, comprimido)
+    files/<user_id>/<entity_type>/<uuid>   cópia de todos os objetos do bucket, com a mesma chave
+    manifest.json             data, versões, revisão do Alembic, linhas por tabela, objetos e SHA-256 de tudo
+  pre-restore-2026-10-30_101500/   estado salvo pelo restore.sh antes de sobrescrever
+  last_success.json           o último backup que terminou bem (formato abaixo)
+```
+
+- **Permissões:** os arquivos pertencem ao usuário `BACKUP_UID`/`BACKUP_GID` do `.env` (padrão 1000, o
+  dono do repositório; confira com `id -u`), com permissão só para ele (`0600`/`0700`): o backup tem dados
+  pessoais e os hashes das senhas. Dá para ler, copiar e apagar sem `sudo`. Só o `last_success.json`, que
+  não tem dados pessoais, é legível por todos (`0644`), para o monitoramento.
+- **Atomicidade:** cada backup é gravado em `backups/.tmp-<nome>/` e só é renomeado para o nome final
+  quando tudo terminou, inclusive o `manifest.json`. Um backup interrompido nunca parece completo, e a
+  sobra `.tmp-*` é apagada na execução seguinte. Se algo falhar, o código de saída é diferente de zero, o
+  log diz o motivo (`docker compose logs backup`), nenhum diretório final é criado e o
+  `last_success.json` fica como estava. Um backup ou restauração por vez (trava em `backups/.lock`).
+- **Ordem e consistência:** primeiro o `pg_dump` (que já é consistente sozinho), depois a cópia dos
+  arquivos. A API grava o objeto **antes** da linha de `files` e apaga a linha **antes** do objeto; assim,
+  toda linha do dump já tinha o seu objeto no bucket quando o dump começou. Um upload feito durante o
+  backup vira, no máximo, um objeto a mais no backup (órfão, que o `python -m scripts.cleanup_orphans`
+  remove). Só um arquivo apagado por alguém nos poucos segundos entre o dump e a cópia deixa uma linha sem
+  objeto; o `manifest.json` lista esses casos em `files.rows_without_object` (e o log avisa). Na ordem
+  inversa, qualquer upload durante a cópia (a etapa mais longa) viraria uma linha sem objeto.
+- **Logs:** `docker compose logs backup` (início, tamanho do dump, objetos copiados, retenção, erros).
+- **Saúde:** o serviço tem `healthcheck` (`python -m backuptool health`, a cada 5 minutos). Fica `unhealthy`
+  quando o `last_success.json` tem mais de 26 horas. Sem um backup tão recente, um container ligado há
+  menos de 26 horas conta como saudável: o backup das 03:00 ainda não teve chance de rodar (servidor recém
+  ligado ou primeira instalação). Veja com `docker compose ps backup`.
+- **Integridade antes da retenção:** cada backup novo é relido e conferido (SHA-256) antes de a retenção
+  apagar qualquer backup antigo; um backup novo corrompido nunca causa a remoção dos bons.
+- **Versões da imagem:** a imagem base (`postgres:16.10-alpine`) é fixada por tag **e digest**, e os
+  pacotes Python (boto3 e dependências), por versão exata. Já os pacotes do Alpine instalados por cima
+  (`python3`) **não** são fixados por versão: o Alpine remove versões antigas do repositório, e fixar
+  quebraria o build. Só a série é fixada (`python3~3.12`); o resto vem do digest da imagem base.
+
+### Retenção (7 diários + 4 semanais + 6 mensais)
+
+Depois de cada backup bem-sucedido (o agendado ou um manual), os backups `AAAA-MM-DD_HHMMSS` são
+filtrados pela regra GFS, contada em períodos do calendário até hoje:
+
+- o último backup de cada um dos **7 últimos dias**;
+- o último backup de cada uma das **4 últimas semanas** (segunda a domingo, contando a semana atual);
+- o último backup de cada um dos **6 últimos meses** (contando o mês atual).
+
+O resto é apagado. Com mais de um backup no mesmo dia, vale o último. O backup mais recente nunca é
+apagado, mesmo que o servidor tenha ficado meses desligado. Os `pre-restore-*` ficam **fora** dessa regra
+e nunca são apagados automaticamente (veja [Os `pre-restore-*`](#os-pre-restore-)). A regra é
+uma função pura (`infra/backup/backuptool/retention.py`) com testes unitários no CI.
+
+### Backup manual
+
+```bash
+docker compose exec backup backup-now            # com o serviço no ar
+docker compose run --rm backup backup-now        # com o serviço parado
+```
+
+Faz o mesmo que o backup das 03:00, inclusive a retenção, e atualiza o `last_success.json`. A última linha
+da saída é `BACKUP_DIR=<nome>`. Para conferir um backup: `docker compose run --rm backup python -m
+backuptool verify <nome>` (confere o `manifest.json` e o SHA-256 de cada arquivo).
+
+### Restauração
+
+```bash
+infra/backup/restore.sh backups/2026-10-28_030000          # pede para digitar RESTAURAR
+infra/backup/restore.sh backups/2026-10-28_030000 --yes    # sem pergunta
+```
+
+O script precisa só de Docker e bash. O caminho tem de estar **diretamente** em `backups/` (para usar um
+backup de um disco externo, copie o diretório para lá antes); links simbólicos são recusados.
+
+1. Confere o `manifest.json` e o SHA-256 do dump e de cada objeto, e mostra o que vai ser substituído
+   (revisão do Alembic, linhas por tabela e objetos, do estado atual e do backup).
+2. Pede confirmação: é preciso digitar `RESTAURAR` (ou passar `--yes`).
+3. Para o `api` e o `backup`. O `web` continua no ar e responde "API indisponível".
+4. Roda uma única `backuptool restore`, sob a mesma trava do backup (nenhum `backup-now` consegue rodar no
+   meio):
+   1. desfaz o que uma restauração interrompida deixou (veja abaixo);
+   2. faz um **backup de segurança** do estado atual em `backups/pre-restore-<data>/`;
+   3. restaura o dump num banco temporário, `<POSTGRES_DB>_restore` (`pg_restore --no-owner
+      --exit-on-error --single-transaction`); se falhar, ele é apagado e nada mudou;
+   4. envia ao bucket os objetos do backup que faltam ou diferem (passo só aditivo: não apaga nada);
+   5. troca o banco **só por renomeações**: `<db>` vira `<db>_old`, `<db>_restore` vira `<db>` (se esta
+      falhar, `<db>_old` volta a ser `<db>`) e, por fim, `<db>_old` é apagado. O banco nunca é apagado antes
+      de o substituto estar pronto. Antes de renomear, as sessões abertas no banco (o Adminer, por
+      exemplo) são encerradas;
+   6. por último, apaga do bucket os objetos que não estão no backup;
+   7. confere os objetos do bucket e as linhas por tabela contra o manifest.
+5. Roda as migrations (`alembic upgrade head`, para backups de uma revisão mais antiga): sobe o `api` de
+   novo se ele estava no ar; se não estava, só migra. O `backup` volta se estava no ar.
+
+É idempotente: rodar de novo com o mesmo backup dá o mesmo resultado.
+
+**Se falhar** (inclusive com Ctrl+C), o script diz a etapa e o estado:
+
+- **Antes da troca do banco** (verificação, parada, backup de segurança, `pg_restore`, envio dos objetos):
+  o banco e os arquivos são os de antes. No máximo ficam objetos a mais no bucket, órfãos inofensivos que o
+  `docker compose exec api python -m scripts.cleanup_orphans` remove. O `api` e o `backup` voltam sozinhos
+  se estavam no ar.
+- **Durante ou depois da troca:** o script mostra quais bancos existem e os comandos de recuperação. Em
+  qualquer momento, um de `<db>` ou `<db>_old` tem um banco completo. A recuperação é automática no início
+  da próxima restauração, ou sozinha com:
+
+  ```bash
+  docker compose run --rm backup python -m backuptool recover
+  ```
+
+  | Estado | O que a recuperação faz (SQL equivalente, no banco `postgres`) |
+  |---|---|
+  | `<db>` ausente e `<db>_old` presente (morreu entre as renomeações) | `ALTER DATABASE "<db>_old" RENAME TO "<db>";` |
+  | `<db>` e `<db>_old` presentes (troca feita, faltou apagar) | `DROP DATABASE "<db>_old" WITH (FORCE);` |
+  | `<db>_restore` presente (restauração não terminou) | `DROP DATABASE "<db>_restore" WITH (FORCE);` |
+
+  Para voltar ao estado de antes da restauração: `infra/backup/restore.sh backups/pre-restore-<data> --yes
+  --skip-safety-backup`. Use `--skip-safety-backup` só nesse caso (ou quando o estado atual nem pode ser
+  lido).
+- **Se só a remoção dos objetos extras falhar:** o banco já é o do backup e sobram órfãos inofensivos
+  (`cleanup_orphans`). Se a conferência final das linhas divergir, a mensagem diz que o banco **foi**
+  restaurado e lista as tabelas com diferença.
+
+#### Os `pre-restore-*`
+
+Ficam fora da retenção e **nunca são apagados automaticamente**: são a sua volta caso a restauração não
+tenha ficado como esperado. Depois de conferir o sistema restaurado, apague-os:
+
+```bash
+ls -d backups/pre-restore-*                 # lista
+rm -rf backups/pre-restore-2026-10-30_101500   # apaga um (sem sudo: pertencem a BACKUP_UID)
+```
+
+#### Simulações de falha (para testar a restauração)
+
+`BACKUP_TEST_HOOK` injeta falhas só quando definida: `exit:between-renames` mata o processo entre as duas
+renomeações, `pause:before-upload` espera 30 s antes do envio dos objetos (tempo de rodar
+`docker compose stop garage`). Exemplo: `BACKUP_TEST_HOOK=exit:between-renames infra/backup/restore.sh
+backups/<nome> --yes`, depois `infra/backup/restore.sh backups/<nome> --yes` de novo (que recupera o banco
+antes de tudo). Nunca defina essa variável no `.env`.
+
+### Copiar para um disco externo
+
+O backup local **não protege contra a perda do disco** do servidor (defeito, roubo, formatação). Copie a
+pasta `backups/` com frequência para um disco externo ou outro computador. Por exemplo, com o disco
+montado em `/media/$USER/BACKUP`:
+
+```bash
+rsync -a --delete backups/ "/media/$USER/BACKUP/organizador-backups/"
+```
+
+Sem `--delete`, o destino guarda também os backups que a retenção já apagou aqui. Para restaurar de lá,
+copie o diretório de volta para `backups/` e rode o `restore.sh`. Guarde a cópia com o mesmo cuidado do
+`.env`: ela tem todos os dados da casa.
+
+### Formato do `last_success.json`
+
+Escrito de forma atômica ao fim de cada backup agendado ou manual bem-sucedido (o `pre-restore` não muda
+o arquivo). Serve para monitorar o backup (por exemplo, alertar se `finished_at` tiver mais de 26 horas):
+
+```json
+{
+  "format_version": 1,
+  "backup": "2026-10-28_030000",
+  "path": "backups/2026-10-28_030000",
+  "kind": "scheduled",
+  "started_at": "2026-10-28T03:00:00-03:00",
+  "finished_at": "2026-10-28T03:00:04-03:00",
+  "duration_seconds": 3.6,
+  "size_bytes": 41409,
+  "database": {"alembic_revision": "b0e9e518b85c", "dump_bytes": 40293},
+  "files": {"count": 0, "bytes": 0}
+}
+```
+
+| Campo | Significado |
+|---|---|
+| `format_version` | Versão do formato (muda só se algum campo mudar de sentido) |
+| `backup`, `path` | Nome do diretório e caminho relativo à raiz do repositório |
+| `kind` | `scheduled` (03:00) ou `manual` (`backup-now`) |
+| `started_at`, `finished_at` | ISO 8601 com o fuso de `APP_TIMEZONE` |
+| `duration_seconds`, `size_bytes` | Duração e tamanho total do diretório |
+| `database` | Revisão do Alembic e tamanho do `db.dump` |
+| `files` | Quantidade de objetos copiados e soma dos tamanhos |
+
+### Teste de ponta a ponta (fora do CI)
+
+`infra/backup/test_backup_restore.sh --yes` repete o roteiro completo na stack local: roda o seed, sobe
+`api` e `web`, anexa um PNG e um PDF pela API, faz o `backup-now` e confere o manifest e os SHA-256
+(também com `sha256sum` no host), apaga anexos e tarefas pela API, faz `DROP TABLE shopping_items` e põe um
+objeto estranho no bucket, roda o `restore.sh --yes`, confere as contagens, o bucket e o SHA-256 dos
+downloads, confere o `pre-restore` e, no fim, apaga os anexos de teste, roda o seed de novo, faz um backup
+final (que fica como exemplo) e remove os outros diretórios criados pelo teste. `api` e `web` voltam ao
+estado de antes. **Apaga e restaura os dados locais:** use na máquina de desenvolvimento, nunca no
+servidor com dados reais. Não roda no CI porque precisa do Garage.
 
 ## Desenvolvimento
 
@@ -277,6 +478,14 @@ pytest -m integration          # só os de integração (precisa do Garage: dock
 pytest -m "not integration"    # todos menos os de integração (o que o CI roda)
 ```
 
+A ferramenta de backup tem os próprios testes (a regra de retenção), sem nenhum serviço:
+
+```bash
+cd infra/backup
+../../backend/.venv/bin/pytest
+../../backend/.venv/bin/ruff check . && ../../backend/.venv/bin/ruff format --check .
+```
+
 ## Integração contínua
 
 O GitHub Actions (`.github/workflows/ci.yml`) roda em todo pull request e em todo push para `main`, com
@@ -284,9 +493,9 @@ três jobs em paralelo:
 
 | Job | O que faz |
 |---|---|
-| `backend` | Postgres `16.10-alpine` como serviço, `ruff check`, `ruff format --check` e `pytest -m "not integration"` (sem Garage no CI) |
+| `backend` | Postgres `16.10-alpine` como serviço, `ruff check`, `ruff format --check` e `pytest -m "not integration"` (sem Garage no CI); depois lint e testes da ferramenta de backup (`infra/backup`) |
 | `frontend` | Node 24: `npm ci`, `npm run lint`, `npm test` e `npm run build` |
-| `docker` | Valida o `docker-compose.yml` (`docker compose config -q`) e faz o build das imagens `api` e `web` (sem push) |
+| `docker` | Valida o `docker-compose.yml` (`docker compose config -q`) e faz o build das imagens `api`, `web` e `backup` (sem push) |
 
 - No CI não existe `.env`: as variáveis vêm do próprio workflow, com valores falsos que só servem ao CI.
 - As actions são fixadas pelo SHA completo do commit (com a tag em comentário) e só entram versões
@@ -294,7 +503,7 @@ três jobs em paralelo:
 - O Dependabot (`.github/dependabot.yml`) propõe atualizações semanais de pip, npm, GitHub Actions e
   imagens Docker (do `docker-compose.yml` e dos Dockerfiles), com `cooldown` de 14 dias: uma versão só é
   sugerida 2 semanas depois de publicada.
-- No build da imagem da API, o `pip` só considera pacotes publicados há pelo menos 14 dias
+- No build das imagens da API e do backup, o `pip` só considera pacotes publicados há pelo menos 14 dias
   (`--uploaded-prior-to=P14D`), o que vale também para as dependências transitivas.
 
 Para reproduzir o job `backend` localmente sem o `.env` interferir, use `ENV_FILE=/dev/null` e passe as
@@ -312,9 +521,12 @@ backend/
 infra/
   postgres/init/    scripts da 1ª inicialização (cria o banco de teste)
   garage/           garage.toml e init.py (layout, chave e bucket)
+  backup/           imagem do serviço backup, backuptool/ (backup, retenção, restauração), restore.sh
+                    e test_backup_restore.sh
 frontend/           React + Vite (ver seção Frontend)
   Dockerfile        imagem web: build do React + Nginx
   nginx/            nginx.conf, template do site e snippets (proxy, cabeçalhos)
+backups/            backups locais (fora do Git; ver Backups)
 docs/ROADMAP.md
 .github/          workflow do CI e dependabot.yml
 docker-compose.yml
