@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16.10-alpine
+    image: postgres:16.14-alpine
     restart: unless-stopped
     logging: *default-logging
     environment:
@@ -69,7 +69,7 @@ services:
     command: ["python", "-u", "/init.py"]
 
   adminer:
-    image: adminer:5.4.1
+    image: adminer:5.5.0
     restart: unless-stopped
     logging: *default-logging
     depends_on:
