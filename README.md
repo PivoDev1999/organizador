@@ -1,5 +1,7 @@
 # Organizador
 
+[![CI](https://github.com/PivoDev1999/organizador/actions/workflows/ci.yml/badge.svg)](https://github.com/PivoDev1999/organizador/actions/workflows/ci.yml)
+
 Sistema pessoal de organização da casa: afazeres, rotina, mercado, despensa, pets, finanças e arquivos.
 
 Roda num computador de casa (o "servidor") e é acessado pelos outros aparelhos da mesma rede Wi-Fi.
@@ -178,6 +180,34 @@ pytest                       # usa o banco POSTGRES_TEST_DB (criado na 1ª subid
 ruff check . && ruff format --check .
 ```
 
+Os testes que precisam do Garage real têm o marcador `integration` (hoje,
+`tests/test_files_storage_integration.py`). O `pytest` sozinho roda tudo; para escolher:
+
+```bash
+pytest -m integration          # só os de integração (precisa do Garage: docker compose up -d garage garage-init)
+pytest -m "not integration"    # todos menos os de integração (o que o CI roda)
+```
+
+## Integração contínua
+
+O GitHub Actions (`.github/workflows/ci.yml`) roda em todo pull request e em todo push para `main`, com
+três jobs em paralelo:
+
+| Job | O que faz |
+|---|---|
+| `backend` | Postgres `16.10-alpine` como serviço, `ruff check`, `ruff format --check` e `pytest -m "not integration"` (sem Garage no CI) |
+| `frontend` | Node 24: `npm ci`, `npm run lint`, `npm test` e `npm run build` |
+| `docker` | Valida o `docker-compose.yml` com `docker compose config -q` (o build das imagens entra com os Dockerfiles) |
+
+- No CI não existe `.env`: as variáveis vêm do próprio workflow, com valores falsos que só servem ao CI.
+- As actions são fixadas pelo SHA completo do commit (com a tag em comentário) e só entram versões
+  publicadas há pelo menos 2 semanas.
+- O Dependabot (`.github/dependabot.yml`) propõe atualizações semanais de pip, npm, GitHub Actions e
+  imagens Docker, com `cooldown` de 14 dias: uma versão só é sugerida 2 semanas depois de publicada.
+
+Para reproduzir o job `backend` localmente sem o `.env` interferir, use `ENV_FILE=/dev/null` e passe as
+mesmas variáveis do workflow (com a senha do Postgres local).
+
 ## Estrutura
 
 ```
@@ -191,6 +221,7 @@ infra/
   garage/           garage.toml e init.py (layout, chave e bucket)
 frontend/           React + Vite (ver seção Frontend)
 docs/ROADMAP.md
+.github/          workflow do CI e dependabot.yml
 docker-compose.yml
 .env.example
 ```

@@ -52,7 +52,8 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Painel com gráficos (cards por módulo, ação rápida de rotina com atualização otimista, gráficos de despesas por categoria e uso dos orçamentos com Recharts carregados sob demanda; nível do orçamento com a mesma regra exata do backend em `src/lib/decimal.ts`)
 
 ## Fase 5 — Qualidade e instalação na rede local
-- [ ] GitHub Actions (lint + testes + build em todo PR)
+- [x] GitHub Actions (lint + testes + build em todo PR)
+  - O build das imagens entra com os Dockerfiles (`feat/production-stack`); por enquanto o CI valida o `docker-compose.yml`
 - [ ] Dockerfiles de produção (API e frontend) e proxy reverso (Nginx/Caddy) na porta 80
   - Limitar também no proxy o corpo do `POST /api/files` (ex.: `client_max_body_size` um pouco acima de `MAX_UPLOAD_MB`), como segunda barreira ao limite que a API já aplica
 - [ ] Servir os assets do Swagger (`/api/docs`) localmente: hoje vêm de CDN e a página não funciona sem internet
