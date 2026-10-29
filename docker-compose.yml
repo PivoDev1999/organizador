@@ -41,7 +41,7 @@ services:
   # One-shot job: assigns the node layout, imports the S3 key and creates the buckets (app and tests).
   # Idempotent, so it is safe to run on every `docker compose up`.
   garage-init:
-    image: python:3.12.15-alpine
+    image: python:3.14.8-alpine
     restart: "no"
     depends_on:
       garage:
