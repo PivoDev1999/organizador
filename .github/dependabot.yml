@@ -27,6 +27,9 @@ updates:
       # Types must follow the installed Node major (24).
       - dependency-name: "@types/node"
         update-types: [version-update:semver-major]
+      # typescript-eslint and openapi-typescript only support TypeScript 5.x.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
 
   - package-ecosystem: github-actions
     directory: /
