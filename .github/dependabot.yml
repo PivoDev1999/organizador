@@ -59,12 +59,26 @@ updates:
       - dependency-name: python
         versions: [">=3.13"]
 
-  # Base images of the Dockerfiles: python (backend), node and nginx (frontend). Tags and digests are
-  # updated together.
+  # boto3 and companions of the backup image (infra/backup/requirements.txt). Keep them equal to the
+  # backend's versions (backend/pyproject.toml).
+  - package-ecosystem: pip
+    directory: /infra/backup
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      backup-minor-patch:
+        update-types: [minor, patch]
+
+  # Base images of the Dockerfiles: python (backend), node and nginx (frontend), postgres (backup). Tags
+  # and digests are updated together. supercronic (ARG in infra/backup/Dockerfile) is updated by hand,
+  # with its SHA-256.
   - package-ecosystem: docker
     directories:
       - /backend
       - /frontend
+      - /infra/backup
     schedule:
       interval: weekly
     cooldown:
@@ -82,3 +96,6 @@ updates:
       # Stay on the stable branch (1.30.x): 1.31 is nginx's mainline.
       - dependency-name: nginx
         versions: [">=1.31"]
+      # infra/backup: pg_dump/pg_restore must stay on the server's major (16), like the postgres service.
+      - dependency-name: postgres
+        update-types: [version-update:semver-major]

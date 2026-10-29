@@ -81,6 +81,14 @@ jobs:
       - name: Tests
         run: pytest -m "not integration"
 
+      # Backup tool of the `backup` service (infra/backup): lint and the unit tests of the GFS retention.
+      - name: Backup tool (lint + tests)
+        working-directory: infra/backup
+        run: |
+          ruff check .
+          ruff format --check .
+          pytest
+
   frontend:
     name: Frontend (lint + tests + build)
     runs-on: ubuntu-24.04
@@ -129,7 +137,7 @@ jobs:
       - name: Validate docker-compose.yml
         run: docker compose config -q
 
-      # Same images `docker compose up -d --build` builds on the server (backend/Dockerfile and
-      # frontend/Dockerfile). Built locally only: nothing is pushed to a registry.
-      - name: Build the api and web images
-        run: docker compose build api web
+      # Same images `docker compose up -d --build` builds on the server (backend/Dockerfile,
+      # frontend/Dockerfile and infra/backup/Dockerfile). Built locally only: nothing is pushed to a registry.
+      - name: Build the api, web and backup images
+        run: docker compose build api web backup
