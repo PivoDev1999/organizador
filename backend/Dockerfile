@@ -53,6 +53,14 @@ COPY --chmod=0755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Fail the build if the time zone database is missing (APP_TIMEZONE would be rejected at startup).
 RUN python -c "from zoneinfo import ZoneInfo; ZoneInfo('America/Sao_Paulo')"
 
+# Build identity, shown by GET /api/status as "<APP_VERSION>+<GIT_SHA>" ("dev" when both are empty). Set by
+# docker-compose.yml (build.args): GIT_SHA from `git rev-parse --short HEAD` exported by whoever runs the
+# build, APP_VERSION optional (a release number). Declared last, so a new commit rebuilds only this layer.
+ARG APP_VERSION=""
+ARG GIT_SHA=""
+ENV APP_VERSION=${APP_VERSION} \
+    GIT_SHA=${GIT_SHA}
+
 USER app
 EXPOSE 8000
 

@@ -83,7 +83,14 @@ services:
   # FastAPI (backend/Dockerfile). No published port: only `web` (Nginx) reaches it, through the `proxy`
   # network. On start it waits for Postgres, runs `alembic upgrade head` once and starts uvicorn.
   api:
-    build: ./backend
+    build:
+      context: ./backend
+      # Version shown by GET /api/status and the Status page. GIT_SHA comes from the shell:
+      #   GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
+      # Without it the version is "dev". APP_VERSION (optional) is a release number: "1.0.0+abc1234".
+      args:
+        APP_VERSION: ${APP_VERSION:-}
+        GIT_SHA: ${GIT_SHA:-}
     image: organizador-api:local
     restart: unless-stopped
     logging: *default-logging
@@ -117,8 +124,13 @@ services:
       # Only for `docker compose exec api python -m scripts.seed` (demo data).
       SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
       API_WORKERS: ${API_WORKERS:-2}
+      # Only last_success.json (0644) is read, for GET /api/status; the backups themselves (0700 of
+      # BACKUP_UID) stay unreadable for the API's uid 10001.
+      BACKUPS_DIR: /backups
       # uvicorn trusts X-Forwarded-For/-Proto only from this network (where only `web` lives with it).
       FORWARDED_ALLOW_IPS: ${PROXY_SUBNET:-172.31.250.0/28}
+    volumes:
+      - ./backups:/backups:ro
     networks:
       - default
       - proxy

@@ -161,14 +161,14 @@ def test_error_message_never_echoes_the_file_name(client, ana):
     assert "segredo" not in response.text and "script" not in response.text
 
 
-def test_failed_insert_after_put_removes_the_object(client, ana, task_id, storage, monkeypatch):
+def test_failed_insert_after_put_removes_the_object(client, ana, task_id, storage, monkeypatch, caplog):
     def broken_add(db, file):
         raise RuntimeError("insert failed")
 
     monkeypatch.setattr(file_repo, "add", broken_add)
 
-    with pytest.raises(RuntimeError, match="insert failed"):
-        upload(client, ana[1], "task", task_id)
+    assert upload(client, ana[1], "task", task_id).status_code == 500
+    assert [str(r.exc_info[1]) for r in caplog.records if r.exc_info] == ["insert failed"]
 
     assert len(storage.deleted) == 1
     assert storage.objects == {}

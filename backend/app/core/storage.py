@@ -28,6 +28,9 @@ DOWNLOAD_CHUNK_SIZE = 64 * 1024
 MULTIPART_CHUNK_SIZE = 8 * 1024 * 1024
 
 MAX_POOL_CONNECTIONS = 40
+# Health probe of GET /api/status: one attempt with short timeouts, so a Garage that is down or hung
+# answers "unavailable" in seconds instead of holding the request (the regular client retries 3 times).
+PING_TIMEOUT_SECONDS = 2
 
 NOT_FOUND_CODES = frozenset({"NoSuchKey", "404", "NotFound"})
 
@@ -78,6 +81,10 @@ class Storage(Protocol):
 
     def list(self, prefix: str = "") -> Iterator[ObjectInfo]:
         """Every object whose key starts with `prefix` (paginated lazily)."""
+        ...
+
+    def ping(self) -> None:
+        """Check that the bucket is reachable, within a few seconds. Raises StorageError otherwise."""
         ...
 
 
@@ -143,6 +150,20 @@ class S3Storage:
                 response_checksum_validation="when_required",
             ),
         )
+        self._ping_client = boto3.client(
+            "s3",
+            endpoint_url=endpoint_url,
+            region_name=region,
+            aws_access_key_id=access_key_id,
+            aws_secret_access_key=secret_access_key,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+                connect_timeout=PING_TIMEOUT_SECONDS,
+                read_timeout=PING_TIMEOUT_SECONDS,
+                retries={"total_max_attempts": 1, "mode": "standard"},
+            ),
+        )
         self._transfer = TransferConfig(
             multipart_threshold=MULTIPART_CHUNK_SIZE,
             multipart_chunksize=MULTIPART_CHUNK_SIZE,
@@ -193,6 +214,12 @@ class S3Storage:
                     yield ObjectInfo(item["Key"], item["Size"], item["LastModified"])
         except (BotoCoreError, ClientError) as exc:
             raise StorageError("list failed") from exc
+
+    def ping(self) -> None:
+        try:
+            self._ping_client.head_bucket(Bucket=self.bucket)
+        except (BotoCoreError, ClientError) as exc:
+            raise StorageError("ping failed") from exc
 
 
 @lru_cache

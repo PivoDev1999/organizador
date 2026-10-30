@@ -93,8 +93,8 @@ cp .env.example .env
 #    Troque todos os "change-me": os comandos para gerar cada segredo estão nos comentários do .env.
 #    Se a porta 80 já estiver em uso no servidor, defina outra em HTTP_PORT (ex.: 8088).
 
-# 2. Build das imagens e subida de tudo
-docker compose up -d --build
+# 2. Build das imagens e subida de tudo (GIT_SHA: a versão que a página Status mostra; veja "Status do sistema")
+GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build
 docker compose ps                   # api e web "healthy", backup "running"; garage-init "exited (0)"
 
 # 3. Primeiro usuário (a senha é pedida no terminal, nunca vai na linha de comando)
@@ -125,9 +125,10 @@ Descubra o IP com `hostname -I` no servidor.
   ```
 - **Dados de exemplo (opcional):** `docker compose exec api python -m scripts.seed` (usuário
   `demo@organizador.local`, senha `SEED_USER_PASSWORD`).
-- **Atualizar:** `git pull && docker compose up -d --build`. As migrations rodam sozinhas quando a API sobe.
-- **Logs:** `docker compose logs -f api web` (ou de um serviço só). Os logs de todos os serviços têm
-  rotação (3 arquivos de 10 MB cada).
+- **Atualizar:** `git pull && GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build`. As
+  migrations rodam sozinhas quando a API sobe.
+- **Logs:** `docker compose logs -f api web backup` (veja [Logs](#logs)). **Status:** página "Status do
+  sistema" no app (veja [Status do sistema](#status-do-sistema)).
 - **Parar:** `docker compose stop` (os dados ficam nos volumes). Com `restart: unless-stopped`, tudo volta
   sozinho quando o computador reinicia, exceto o que foi parado com `stop`.
 
@@ -355,6 +356,113 @@ downloads, confere o `pre-restore` e, no fim, apaga os anexos de teste, roda o s
 final (que fica como exemplo) e remove os outros diretórios criados pelo teste. `api` e `web` voltam ao
 estado de antes. **Apaga e restaura os dados locais:** use na máquina de desenvolvimento, nunca no
 servidor com dados reais. Não roda no CI porque precisa do Garage.
+
+## Status do sistema
+
+A página **Status do sistema** (`/status`; no computador, no rodapé do menu lateral; no celular, em
+"Mais") mostra a versão, o horário do servidor e há quanto tempo a API está no ar, o banco (tempo de
+resposta e revisão do Alembic), os arquivos (Garage, tempo de resposta) e o último backup (quando terminou,
+há quanto tempo, tamanho), com um resumo no topo. Atualiza sozinha a cada minuto enquanto está aberta.
+
+Ela lê `GET /api/status` (exige login). Já o `GET /api/health` continua público e leve, só com o banco
+(200 ou 503): é o que o healthcheck do container `api` usa, e não mostra versão nem detalhes internos.
+
+| Bloco | Valores | Como é checado |
+|---|---|---|
+| `database` | `ok` / `unavailable`, `latency_ms`, `alembic_revision` | `SELECT` na tabela `alembic_version`, com `statement_timeout` de 2 s |
+| `storage` | `ok` / `unavailable`, `latency_ms` | `HeadBucket` no Garage: uma tentativa, timeouts de 2 s (conexão e leitura) |
+| `backup` | `ok` / `stale` / `missing` / `unreadable`, `last_success_at`, `age_hours`, `size_bytes`, `name` | lê `backups/last_success.json` |
+
+- **Isolamento:** cada checagem falha sozinha. Com o Garage parado, a resposta continua 200 (em
+  milissegundos, porque o nome `garage` deixa de existir na rede do Docker; com o Garage travado, em uns
+  2 s), com `storage.status = "unavailable"`. O cliente recebe só o status; o log da API registra a
+  checagem e o tipo do erro (`check=storage error=StorageError/EndpointConnectionError`), nunca URLs,
+  chaves ou stack trace.
+- **Backup:** `stale` quando o último backup tem mais de **26 horas**, a mesma regra do healthcheck do
+  serviço `backup`. O limite vem no próprio bloco (`max_age_hours`), e é esse valor que a página mostra.
+  As duas constantes ficam em imagens diferentes (`BACKUP_MAX_AGE_HOURS` em
+  `backend/app/core/system_status.py` e `MAX_AGE_HOURS` em `infra/backup/backuptool/core.py`) e precisam
+  mudar juntas; um teste do backend falha se elas divergirem. `missing`: não existe `last_success.json`
+  (nenhum backup terminou ainda); `unreadable`: o arquivo existe, mas não pôde ser lido ou está fora do
+  formato. A API abre o arquivo sem seguir link simbólico e sem bloquear, e só lê um arquivo comum de até
+  64 KB: um link, um FIFO ou um arquivo enorme no lugar dele viram `unreadable`.
+- **Resumo (`overall`):**
+  - `down`: o banco não responde (nada funciona sem ele);
+  - `degraded`: o app funciona, mas algo precisa de atenção: os arquivos indisponíveis ou o backup
+    `stale`, `missing` ou `unreadable`;
+  - `ok`: todo o resto.
+
+  **Com o banco fora, a fonte de verdade é o `GET /api/health` (503) e o `docker compose ps`** (a `api`
+  fica `unhealthy` pelo mesmo `/api/health`). O login também depende do banco, então o `/api/status` não
+  chega a responder: a página mostra "Sistema fora do ar: não foi possível falar com a API ou com o banco
+  de dados", com a orientação de rodar `docker compose ps` no servidor. O mesmo vale para qualquer 5xx ou
+  falta de resposta (API parada ou reiniciando); um 401 leva ao login. Numa instalação
+  nova, o resumo fica `degraded` ("Nenhum backup foi feito ainda") até o primeiro backup das 03:00; rode
+  `docker compose exec backup backup-now` para não esperar.
+- **Acesso ao `backups/`:** o `api` monta `./backups` em `/backups` **só para leitura** (`BACKUPS_DIR`)
+  e lê apenas o `last_success.json` (`0644`). Os diretórios de backup (`0700`, do `BACKUP_UID`) continuam
+  ilegíveis para o uid 10001 da API. Em desenvolvimento, o padrão é a pasta `backups/` do repositório.
+- **Versão:** `"<APP_VERSION>+<GIT_SHA>"`, ou só um deles, ou `dev` sem nenhum. Os dois entram na imagem
+  como `ARG`/`ENV` do `backend/Dockerfile`, passados pelo `docker-compose.yml` (`build.args`) a partir de
+  variáveis do shell: `GIT_SHA=$(git rev-parse --short HEAD) docker compose up -d --build` dá, por
+  exemplo, `ef32ccd`; com `APP_VERSION=1.0.0` na frente, `1.0.0+ef32ccd`. Sem elas (um `docker compose
+  up -d --build` simples, o build do CI ou o `uvicorn` de desenvolvimento), a versão é `dev`. Não ponha
+  `GIT_SHA` no `.env`: ele ficaria desatualizado no próximo `git pull`. O commit é o do `HEAD` no momento
+  do build; mudanças locais não commitadas não aparecem nele.
+
+## Logs
+
+Cada serviço escreve no stdout do próprio container; o Docker guarda e faz a **rotação** (driver
+`json-file`, no máximo 3 arquivos de 10 MB por serviço, definido uma vez em `x-logging` no
+`docker-compose.yml`). Não há serviço extra de logs.
+
+```bash
+docker compose logs -f api web backup        # tudo junto, acompanhando
+docker compose logs --since 1h api           # só a API, da última hora
+docker compose logs api web | grep 'level=WARNING\|level=ERROR'
+```
+
+**Formato:** a API e o Nginx escrevem **uma linha por evento** em `key=value` (logfmt). Foi escolhido em
+vez de JSON porque quem lê é uma pessoa no terminal, sem um coletor de logs: logfmt é legível sem
+ferramenta e continua fácil de filtrar com `grep`. Valores com espaço ficam entre aspas, e quebras de
+linha (inclusive de um stack trace) viram `\n`, e os outros caracteres de controle viram `\xNN` (o Nginx
+faz o mesmo com `escape=default`): nenhuma sequência de terminal (ESC) chega ao `docker compose logs`.
+Horários em UTC, com o fuso explícito.
+
+```
+web-1  | time=2026-10-29T04:05:53+00:00 logger=nginx.access request_id=1f7880b0cf5f185f8ea3cf3de0257663 client=172.31.250.1 method=GET path="/api/status" status=200 bytes=390 duration_s=0.124 upstream_status=200 user_agent="curl/8.5.0"
+api-1  | time=2026-10-29T04:05:53.336+00:00 level=INFO logger=app.access request_id=1f7880b0cf5f185f8ea3cf3de0257663 msg=request method=GET path=/api/status status=200 duration_ms=123.4
+```
+
+**Seguindo uma requisição do Nginx até a API:** o Nginx gera um `$request_id` para cada requisição,
+registra no próprio log e o repassa à API no cabeçalho `X-Request-ID` (que substitui qualquer valor
+mandado pelo cliente). A API usa o mesmo id em todas as linhas daquela requisição e o devolve no cabeçalho
+`X-Request-ID` da resposta (veja na aba Rede do navegador). Para ver tudo de uma requisição:
+
+```bash
+docker compose logs api web | grep request_id=1f7880b0cf5f185f8ea3cf3de0257663
+```
+
+Sem o Nginx (desenvolvimento com `uvicorn`), a API aceita um `X-Request-ID` válido (8 a 64 caracteres
+entre letras, números, `.`, `_` e `-`) ou gera um.
+
+**Erros 500:** uma exceção não tratada na API gera **uma** linha `level=ERROR logger=app.errors` com o
+`request_id` da requisição e o stack trace (numa linha só, com `\n`), e o cliente recebe um 500 genérico
+(`{"detail": "Erro interno."}`) com o mesmo `X-Request-ID`. Assim, a partir do id que aparece na aba Rede
+do navegador, dá para achar o erro no log. Os erros do SQLAlchemy no log mostram o SQL **sem** os valores
+enviados (`hide_parameters=True`): nada de e-mails, hashes ou textos digitados.
+
+**O que nunca vai para o log:** corpo das requisições, tokens, o cabeçalho `Authorization`, o `Referer` e a
+**query string** (que pode ter dados pessoais, como o texto de uma busca): os dois lados registram só o
+caminho (`path`). O log de acesso da própria API (`app.access`) substitui o do uvicorn, que fica
+desligado (`--no-access-log`). As chamadas bem-sucedidas a `/api/health` (o healthcheck do Docker, a cada
+15 s) não entram no log; as que falham, sim.
+
+| Serviço | O que aparece |
+|---|---|
+| `web` | Uma linha por requisição (`logger=nginx.access`), mais os avisos e erros do Nginx |
+| `api` | Uma linha por requisição (`logger=app.access`), avisos (ex.: `status check failed`) e erros com stack trace, a subida do uvicorn; antes, a saída do `wait_for_db` e do `alembic upgrade head` |
+| `backup` | Início, tamanho do dump, objetos copiados, retenção e erros (veja [Backups](#backups)) |
 
 ## Desenvolvimento
 

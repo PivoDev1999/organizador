@@ -32,7 +32,8 @@ class _FakeReader:
 
 
 class FakeStorage:
-    """`Storage` in a dict. Set `fail_put`, `fail_open` or `fail_delete` to simulate a broken server.
+    """`Storage` in a dict. Set `fail_put`, `fail_open`, `fail_delete` or `fail_ping` to simulate a broken
+    server.
 
     `put` writes as it reads, block by block, so an upload interrupted midway leaves a partial object
     behind, like an S3 multipart upload: the code under test must clean it up. Like s3transfer, it takes
@@ -47,7 +48,7 @@ class FakeStorage:
         self.modified: dict[str, datetime] = {}
         self.deleted: list[str] = []
         self.readers: list[_FakeReader] = []
-        self.fail_put = self.fail_open = self.fail_delete = False
+        self.fail_put = self.fail_open = self.fail_delete = self.fail_ping = False
 
     def put(self, key: str, stream: BinaryIO, content_type: str) -> None:
         if self.fail_put:
@@ -81,3 +82,7 @@ class FakeStorage:
         for key in sorted(self.objects):
             if key.startswith(prefix):
                 yield ObjectInfo(key, len(self.objects[key]), self.modified[key])
+
+    def ping(self) -> None:
+        if self.fail_ping:
+            raise StorageError("ping failed (fake)")

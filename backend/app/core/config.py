@@ -53,6 +53,15 @@ class Settings(BaseSettings):
 
     seed_user_password: str | None = None
 
+    # Build identity, shown by GET /api/status. The Docker image gets them from build args
+    # (backend/Dockerfile, docker-compose.yml); in development both stay unset and the version is "dev".
+    app_version: str = ""
+    git_sha: str = ""
+
+    # Folder of the `backup` service, read only for last_success.json (GET /api/status). In the Docker stack
+    # it is ./backups mounted read-only at /backups.
+    backups_dir: Path = REPO_ROOT / "backups"
+
     # Swagger UI assets (npm package swagger-ui-dist, a frontend devDependency), served by the API under
     # /api/docs-assets in development. In the Docker stack Nginx serves them and this folder does not exist.
     swagger_ui_dir: Path = REPO_ROOT / "frontend" / "node_modules" / "swagger-ui-dist"

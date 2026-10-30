@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutDashboard, ListChecks, Package, PawPrint, Repeat, ShoppingCart, Wallet } from "lucide-react";
+import { Activity, LayoutDashboard, ListChecks, Package, PawPrint, Repeat, ShoppingCart, Wallet } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -18,3 +18,6 @@ export const NAV_ITEMS: NavItem[] = [
   { to: "/pets", label: "Pets", icon: PawPrint, primary: false },
   { to: "/financas", label: "Finanças", icon: Wallet, primary: true },
 ];
+
+/** System pages, apart from the modules: the sidebar footer on desktop, the end of "Mais" on phones. */
+export const SYSTEM_ITEMS: NavItem[] = [{ to: "/status", label: "Status do sistema", icon: Activity, primary: false }];

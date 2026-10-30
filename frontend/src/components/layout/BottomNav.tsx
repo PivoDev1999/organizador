@@ -2,10 +2,11 @@ import { Ellipsis } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { cn } from "@/lib/cn";
-import { NAV_ITEMS } from "./navigation";
+import { NAV_ITEMS, SYSTEM_ITEMS } from "./navigation";
 
 const PRIMARY = NAV_ITEMS.filter((item) => item.primary);
 const MORE = NAV_ITEMS.filter((item) => !item.primary);
+const ALL_MORE = [...MORE, ...SYSTEM_ITEMS];
 
 const itemClass = (active: boolean) =>
   cn(
@@ -20,7 +21,7 @@ export function BottomNav() {
   const menuId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const moreActive = MORE.some((item) => pathname.startsWith(item.to));
+  const moreActive = ALL_MORE.some((item) => pathname.startsWith(item.to));
 
   // Close on navigation.
   const [lastPath, setLastPath] = useState(pathname);
@@ -55,8 +56,9 @@ export function BottomNav() {
           id={menuId}
           className="mx-2 mb-2 space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
-          {MORE.map(({ to, label, icon: Icon }) => (
-            <li key={to}>
+          {ALL_MORE.map(({ to, label, icon: Icon }, index) => (
+            // A line between the modules and the system pages.
+            <li key={to} className={cn(index === MORE.length && "mt-1 border-t border-slate-200 pt-1")}>
               <NavLink
                 to={to}
                 className={({ isActive }) =>

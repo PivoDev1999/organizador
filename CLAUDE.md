@@ -12,7 +12,7 @@ Projeto de portfólio: deve seguir práticas de mercado (código limpo, testes, 
 - **Não há deploy em nuvem** e nada fica exposto para a internet: sem port forwarding no roteador.
 - Tudo sobe com um único `docker compose up -d`: banco, storage, API e frontend.
 - Serviços escutam em `0.0.0.0` para serem acessíveis na rede. Postgres, Garage e Adminer ficam fechados para a rede, acessíveis só pelo próprio servidor (bind em `127.0.0.1`) ou pela rede interna do Docker.
-- Endereços e portas vêm do `.env`, nunca fixos no código. O frontend chama a API por caminho relativo (`/api`) via proxy reverso (Nginx ou Caddy) na porta 80.
+- Endereços e portas vêm do `.env`, nunca fixos no código. O frontend chama a API por caminho relativo (`/api`) via proxy reverso (Nginx) na porta 80.
 - O sistema deve funcionar **sem internet**: nenhuma dependência de CDN, fonte externa ou API externa obrigatória.
 - Backup automático diário do Postgres e do Garage em uma pasta local (`backups/`).
 
@@ -22,7 +22,7 @@ Projeto de portfólio: deve seguir práticas de mercado (código limpo, testes, 
 - Arquivos: Garage (compatível com S3; substituiu o MinIO, cuja edição Community foi descontinuada), acessado via API S3 (boto3), metadados na tabela `files`. O layout, a chave e o bucket são criados pelo serviço `garage-init` do compose.
 - Frontend: React + TypeScript + Vite + Tailwind
 - Testes: pytest (backend), Vitest (frontend)
-- Infra: Docker Compose na rede local, Nginx/Caddy como proxy reverso, GitHub Actions para CI (o código vai pro GitHub, o sistema não)
+- Infra: Docker Compose na rede local, Nginx como proxy reverso, GitHub Actions para CI (o código vai pro GitHub, o sistema não)
 
 ## Módulos
 1. Painel — resumo do dia (agrega dados dos outros módulos)
