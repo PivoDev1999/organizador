@@ -63,7 +63,9 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
   - Serviço `backup` (03:00 em `APP_TIMEZONE`, supercronic), em `backups/AAAA-MM-DD_HHMMSS/`; retenção GFS 7 diários + 4 semanais + 6 mensais; `backups/last_success.json` para a observabilidade
 - [x] Script de restauração de backup testado
   - `infra/backup/restore.sh` (com backup de segurança `pre-restore-*`); teste de ponta a ponta em `infra/backup/test_backup_restore.sh` (fora do CI: precisa do Garage)
-- [ ] Logs centralizados e página `/health` mostrando o status dos serviços
+- [x] Logs centralizados e página de status
+  - Página "Status do sistema" (`/status`, via `GET /api/status`, com login): versão, banco, arquivos e último backup; `GET /api/health` continua público e leve
+  - Logs em `key=value` com `request_id` do Nginx até a API, sem query string (README, seção "Logs")
 
 ## Fase 6 — IA (diferencial de portfólio)
 - [ ] Modelo local com Ollama (funciona sem internet), API externa como opcional
