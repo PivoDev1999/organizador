@@ -824,6 +824,8 @@ def recover() -> None:
 # --------------------------------------------------------------------------------------------------------
 # Health (healthcheck of the `backup` service)
 
+# Also the "stale" limit of GET /api/status (BACKUP_MAX_AGE_HOURS in backend/app/core/system_status.py):
+# change both together (backend/tests/test_status.py fails when they differ).
 MAX_AGE_HOURS = 26
 
 

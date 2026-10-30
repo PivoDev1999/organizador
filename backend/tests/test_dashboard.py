@@ -530,11 +530,13 @@ def test_snapshot_is_strict_by_default_and_lenient_only_on_request(db_session):
     assert begin_read_snapshot(db_session, require=False) is False
 
 
-def test_dashboard_refuses_to_answer_without_its_snapshot(client, ana, override_settings):
+def test_dashboard_refuses_to_answer_without_its_snapshot(client, ana, override_settings, caplog):
     override_settings(dashboard_require_snapshot=True)
 
-    with pytest.raises(SnapshotUnavailableError):  # a 500 in production, raised here by TestClient
-        client.get(URL, headers=ana[1])
+    response = client.get(URL, headers=ana[1])
+
+    assert response.status_code == 500
+    assert [r.exc_info[0] for r in caplog.records if r.exc_info] == [SnapshotUnavailableError]
 
 
 # --- agreement with the source endpoints ---------------------------------------------------------
