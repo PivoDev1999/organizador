@@ -45,7 +45,6 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 
 ## Fase 4 — Frontend
 - [x] Projeto React + TS + Vite + Tailwind, login
-  - Pendência: a partir de 29/10/2026, subir `undici` para 7.30.1 (via `overrides`) — vulnerabilidade alta só no ambiente de testes (jsdom), fora do bundle
   - Dependências novas: instalar com `npm install --before=<data de hoje − 14 dias>` para manter a regra das 2 semanas também nas indiretas
 - [x] Uma tela por módulo
   - PDF inline com CSP sandbox: resolvido no frontend. O componente de anexos baixa com `fetch` + token e exibe um blob (`URL.createObjectURL`); o blob não carrega os headers da resposta (CSP `sandbox`), então o visualizador de PDF do Chrome não é bloqueado e a API mantém `default-src 'none'; sandbox`. A pré-visualização só aceita os tipos confirmados pela API com `?inline=true` (JPEG, PNG, GIF, WebP, PDF); o resto é baixado
