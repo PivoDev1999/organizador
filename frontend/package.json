@@ -49,5 +49,8 @@
   },
   "scarfSettings": {
     "enabled": false
+  },
+  "overrides": {
+    "undici": "7.30.1"
   }
 }
