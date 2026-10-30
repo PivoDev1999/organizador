@@ -89,3 +89,15 @@ export function formatFileSize(bytes: number): string {
   }
   return `${size.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
+
+/** Seconds → "menos de 1 min", "42 min", "3 h 5 min", "2 d 4 h". Whole units, rounded down. */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) return PLACEHOLDER;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 1) return "menos de 1 min";
+  const hours = Math.floor(minutes / 60);
+  if (hours < 1) return `${minutes} min`;
+  const days = Math.floor(hours / 24);
+  if (days < 1) return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+  return hours % 24 ? `${days} d ${hours % 24} h` : `${days} d`;
+}

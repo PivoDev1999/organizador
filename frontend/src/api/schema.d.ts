@@ -18,6 +18,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Status
+         * @description Status do sistema: versão, horário e uptime da API, e a situação do banco, dos arquivos (Garage)
+         *     e do último backup.
+         *
+         *     Responde 200 mesmo com um serviço fora do ar: cada bloco traz o seu status, e `overall` resume:
+         *     `down` sem banco, `degraded` com os arquivos indisponíveis ou o backup atrasado, ausente ou ilegível,
+         *     `ok` no resto. Para o healthcheck do container e do proxy, use `GET /api/health` (público e leve).
+         */
+        get: operations["get_status_api_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/register": {
         parameters: {
             query?: never;
@@ -918,6 +943,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * BackupState
+         * @enum {string}
+         */
+        BackupState: "ok" | "stale" | "missing" | "unreadable";
+        /** BackupStatusRead */
+        BackupStatusRead: {
+            status: components["schemas"]["BackupState"];
+            /** Last Success At */
+            last_success_at: string | null;
+            /** Age Hours */
+            age_hours: number | null;
+            /** Size Bytes */
+            size_bytes: number | null;
+            /** Name */
+            name: string | null;
+            /** Max Age Hours */
+            max_age_hours: number;
+        };
         /** BalanceRead */
         BalanceRead: {
             /**
@@ -1131,6 +1175,11 @@ export interface components {
              */
             category: string;
         };
+        /**
+         * CheckStatus
+         * @enum {string}
+         */
+        CheckStatus: "ok" | "unavailable";
         /** DashboardRead */
         DashboardRead: {
             /**
@@ -1145,6 +1194,14 @@ export interface components {
             shopping: components["schemas"]["ShoppingPanelRead"];
             pets: components["schemas"]["PetsPanelRead"];
             finance: components["schemas"]["FinancePanelRead"];
+        };
+        /** DatabaseStatusRead */
+        DatabaseStatusRead: {
+            status: components["schemas"]["CheckStatus"];
+            /** Latency Ms */
+            latency_ms: number | null;
+            /** Alembic Revision */
+            alembic_revision: string | null;
         };
         /**
          * FileEntityType
@@ -1217,6 +1274,11 @@ export interface components {
             expense: components["schemas"]["TotalsRead"];
             balance: components["schemas"]["BalanceRead"];
         };
+        /**
+         * Overall
+         * @enum {string}
+         */
+        Overall: "ok" | "degraded" | "down";
         /** Page[PantryItemRead] */
         Page_PantryItemRead_: {
             /** Items */
@@ -2044,6 +2106,12 @@ export interface components {
              */
             amount: string | number;
         };
+        /** StorageStatusRead */
+        StorageStatusRead: {
+            status: components["schemas"]["CheckStatus"];
+            /** Latency Ms */
+            latency_ms: number | null;
+        };
         /** SummaryRead */
         SummaryRead: {
             /**
@@ -2059,6 +2127,24 @@ export interface components {
              * @description Totais por tipo e categoria (sem diferenciar maiúsculas): despesas primeiro, depois receitas; maior total primeiro.
              */
             by_category: components["schemas"]["CategoryTotalsRead"][];
+        };
+        /** SystemStatusRead */
+        SystemStatusRead: {
+            overall: components["schemas"]["Overall"];
+            /** Version */
+            version: string;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+            /** Timezone */
+            timezone: string;
+            /** Uptime Seconds */
+            uptime_seconds: number;
+            database: components["schemas"]["DatabaseStatusRead"];
+            storage: components["schemas"]["StorageStatusRead"];
+            backup: components["schemas"]["BackupStatusRead"];
         };
         /** TaskCreate */
         TaskCreate: {
@@ -2386,6 +2472,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    get_status_api_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatusRead"];
                 };
             };
         };

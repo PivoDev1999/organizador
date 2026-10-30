@@ -26,6 +26,33 @@
         }
       }
     },
+    "/api/status": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Get Status",
+        "description": "Status do sistema: versão, horário e uptime da API, e a situação do banco, dos arquivos (Garage)\ne do último backup.\n\nResponde 200 mesmo com um serviço fora do ar: cada bloco traz o seu status, e `overall` resume:\n`down` sem banco, `degraded` com os arquivos indisponíveis ou o backup atrasado, ausente ou ilegível,\n`ok` no resto. Para o healthcheck do container e do proxy, use `GET /api/health` (público e leve).",
+        "operationId": "get_status_api_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatusRead"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
     "/api/auth/register": {
       "post": {
         "tags": [
@@ -4111,6 +4138,82 @@
   },
   "components": {
     "schemas": {
+      "BackupState": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "stale",
+          "missing",
+          "unreadable"
+        ],
+        "title": "BackupState"
+      },
+      "BackupStatusRead": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/BackupState"
+          },
+          "last_success_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Success At"
+          },
+          "age_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Hours"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "max_age_hours": {
+            "type": "integer",
+            "title": "Max Age Hours"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "last_success_at",
+          "age_hours",
+          "size_bytes",
+          "name",
+          "max_age_hours"
+        ],
+        "title": "BackupStatusRead"
+      },
       "BalanceRead": {
         "properties": {
           "total": {
@@ -4543,6 +4646,14 @@
         ],
         "title": "CategoryTotalsRead"
       },
+      "CheckStatus": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "unavailable"
+        ],
+        "title": "CheckStatus"
+      },
       "DashboardRead": {
         "properties": {
           "date": {
@@ -4581,6 +4692,42 @@
           "finance"
         ],
         "title": "DashboardRead"
+      },
+      "DatabaseStatusRead": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CheckStatus"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "alembic_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alembic Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "latency_ms",
+          "alembic_revision"
+        ],
+        "title": "DatabaseStatusRead"
       },
       "FileEntityType": {
         "type": "string",
@@ -4731,6 +4878,15 @@
         ],
         "title": "MonthTotalsRead",
         "description": "Totals of the month (accrual basis), without the breakdown by category."
+      },
+      "Overall": {
+        "type": "string",
+        "enum": [
+          "ok",
+          "degraded",
+          "down"
+        ],
+        "title": "Overall"
       },
       "Page_PantryItemRead_": {
         "properties": {
@@ -6912,6 +7068,30 @@
         "title": "StockChange",
         "description": "Body of consume/restock."
       },
+      "StorageStatusRead": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CheckStatus"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "latency_ms"
+        ],
+        "title": "StorageStatusRead"
+      },
       "SummaryRead": {
         "properties": {
           "month": {
@@ -6949,6 +7129,51 @@
           "by_category"
         ],
         "title": "SummaryRead"
+      },
+      "SystemStatusRead": {
+        "properties": {
+          "overall": {
+            "$ref": "#/components/schemas/Overall"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "server_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Server Time"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "title": "Uptime Seconds"
+          },
+          "database": {
+            "$ref": "#/components/schemas/DatabaseStatusRead"
+          },
+          "storage": {
+            "$ref": "#/components/schemas/StorageStatusRead"
+          },
+          "backup": {
+            "$ref": "#/components/schemas/BackupStatusRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall",
+          "version",
+          "server_time",
+          "timezone",
+          "uptime_seconds",
+          "database",
+          "storage",
+          "backup"
+        ],
+        "title": "SystemStatusRead"
       },
       "TaskCreate": {
         "properties": {

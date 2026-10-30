@@ -10,6 +10,7 @@ import { PetDetailPage } from "@/pages/PetDetailPage";
 import { PetsPage } from "@/pages/PetsPage";
 import { RoutinesPage } from "@/pages/RoutinesPage";
 import { ShoppingPage } from "@/pages/ShoppingPage";
+import { StatusPage } from "@/pages/StatusPage";
 import { TasksPage } from "@/pages/TasksPage";
 
 /** Route table. Providers (router, query client, auth, toasts) are set up in AppProviders. */
@@ -27,6 +28,7 @@ export function App() {
           <Route path="pets" element={<PetsPage />} />
           <Route path="pets/:id" element={<PetDetailPage />} />
           <Route path="financas" element={<FinancePage />} />
+          <Route path="status" element={<StatusPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

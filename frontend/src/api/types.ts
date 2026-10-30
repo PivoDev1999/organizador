@@ -21,6 +21,10 @@ export type CategoryTotals = Schemas["CategoryTotalsRead"];
 export type Budget = Schemas["BudgetRead"];
 export type BudgetAlert = Schemas["BudgetAlertRead"];
 export type BudgetAlertLevel = Schemas["BudgetAlertLevel"];
+export type SystemStatus = Schemas["SystemStatusRead"];
+export type CheckStatus = Schemas["CheckStatus"];
+export type BackupState = Schemas["BackupState"];
+export type OverallStatus = Schemas["Overall"];
 
 export type TaskStatus = Schemas["TaskStatus"];
 export type TaskPriority = Schemas["TaskPriority"];
