@@ -15,6 +15,7 @@ class FileEntityType(StrEnum):
     PET = "pet"
     PET_EVENT = "pet_event"
     TRANSACTION = "transaction"
+    EVENT = "event"
 
 
 class File(EntityMixin, Base):

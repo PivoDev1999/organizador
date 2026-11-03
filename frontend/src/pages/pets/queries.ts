@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { agendaKeys } from "@/api/agenda";
 import { dashboardKeys } from "@/api/dashboard";
 import { errorMessage } from "@/api/errors";
 import { financeKeys } from "@/api/finance";
@@ -86,8 +87,9 @@ export function usePetEventDescriptions(petId: string, enabled: boolean) {
 }
 
 /**
- * Pets, events and reminders share the "pets" prefix; the dashboard shows the reminders. With
- * `finance`, the transaction lists and summaries too (a deleted pet leaves its expenses without it).
+ * Pets, events and reminders share the "pets" prefix; the dashboard and the agenda's calendar show the
+ * reminders. With `finance`, the transaction lists and summaries too (a deleted pet leaves its
+ * expenses without it).
  */
 function useRefreshPets() {
   const queryClient = useQueryClient();
@@ -95,6 +97,7 @@ function useRefreshPets() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: petKeys.all }),
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      queryClient.invalidateQueries({ queryKey: agendaKeys.calendarAll }),
       finance && queryClient.invalidateQueries({ queryKey: financeKeys.transactions }),
       finance && queryClient.invalidateQueries({ queryKey: financeKeys.budgetsAll }),
     ]);

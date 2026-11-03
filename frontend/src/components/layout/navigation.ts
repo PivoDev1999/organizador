@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Activity, LayoutDashboard, ListChecks, Package, PawPrint, Repeat, ShoppingCart, Wallet } from "lucide-react";
+import { Activity, CalendarDays, LayoutDashboard, ListChecks, Package, PawPrint, Repeat, ShoppingCart, Wallet } from "lucide-react";
 
 export interface NavItem {
   to: string;
@@ -11,6 +11,7 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Painel", icon: LayoutDashboard, primary: true },
+  { to: "/agenda", label: "Agenda", icon: CalendarDays, primary: false },
   { to: "/tarefas", label: "Tarefas", icon: ListChecks, primary: true },
   { to: "/rotina", label: "Rotina", icon: Repeat, primary: false },
   { to: "/mercado", label: "Mercado", icon: ShoppingCart, primary: true },

@@ -135,25 +135,31 @@ def list_for_user(
     return list(items), total
 
 
-def _upcoming_conditions(user_id: uuid.UUID, last_day: date) -> list[ColumnElement[bool]]:
-    """Pending expenses of the user due up to `last_day` (overdue ones included)."""
-    return [
+def _upcoming_conditions(
+    user_id: uuid.UUID, last_day: date, first_day: date | None = None
+) -> list[ColumnElement[bool]]:
+    """Pending expenses of the user due up to `last_day` (overdue ones included, unless `first_day`
+    sets a lower bound)."""
+    conditions = [
         Transaction.user_id == user_id,
         Transaction.type == TransactionType.EXPENSE.value,
         Transaction.paid_at.is_(None),
         Transaction.due_date <= last_day,
     ]
+    if first_day is not None:
+        conditions.append(Transaction.due_date >= first_day)
+    return conditions
 
 
 def list_upcoming(
-    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None
+    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None, first_day: date | None = None
 ) -> list[Transaction]:
-    """Pending expenses due up to `last_day` (overdue ones included; the first `limit`, or all), by due
-    date and id."""
+    """Pending expenses due up to `last_day` (overdue ones included, or from `first_day` on when given;
+    the first `limit`, or all), by due date and id."""
     return list(
         db.scalars(
             select(Transaction)
-            .where(*_upcoming_conditions(user_id, last_day))
+            .where(*_upcoming_conditions(user_id, last_day, first_day))
             .order_by(Transaction.due_date.asc(), Transaction.id.asc())
             .limit(limit)
         ).all()

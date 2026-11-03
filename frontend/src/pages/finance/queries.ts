@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { agendaKeys } from "@/api/agenda";
 import { dashboardKeys } from "@/api/dashboard";
 import { ApiError, errorMessage } from "@/api/errors";
 import {
@@ -34,7 +35,8 @@ export function useTransactionCategories() {
 
 /**
  * Any finance change can move a list, a month's summary and the budgets' `spent` (a due date may
- * change months too), and the dashboard shows bills, the month and budget alerts: refresh them all.
+ * change months too), the dashboard shows bills, the month and budget alerts, and the agenda's calendar
+ * shows unpaid bills: refresh them all.
  */
 export function useRefreshFinance() {
   const queryClient = useQueryClient();
@@ -43,6 +45,7 @@ export function useRefreshFinance() {
       queryClient.invalidateQueries({ queryKey: financeKeys.transactions }),
       queryClient.invalidateQueries({ queryKey: financeKeys.budgetsAll }),
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      queryClient.invalidateQueries({ queryKey: agendaKeys.calendarAll }),
     ]);
 }
 

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { agendaKeys } from "@/api/agenda";
 import { dashboardKeys } from "@/api/dashboard";
 import { errorMessage } from "@/api/errors";
 import { replaceInPage } from "@/api/pagination";
@@ -16,13 +17,14 @@ export function useTasks(filters: TaskFilters, pages: number) {
   });
 }
 
-/** Tasks feed the dashboard (overdue, due today, doing): refresh both after a change. */
+/** Tasks feed the dashboard (overdue, due today, doing) and the agenda's calendar: refresh them after a change. */
 function useRefreshTasks() {
   const queryClient = useQueryClient();
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: taskKeys.all }),
       queryClient.invalidateQueries({ queryKey: dashboardKeys.all }),
+      queryClient.invalidateQueries({ queryKey: agendaKeys.calendarAll }),
     ]);
 }
 

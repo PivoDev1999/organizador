@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router";
 import { RequireAuth } from "@/auth/RequireAuth";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AgendaPage } from "@/pages/AgendaPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { FinancePage } from "@/pages/FinancePage";
 import { LoginPage } from "@/pages/LoginPage";
@@ -21,6 +22,7 @@ export function App() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="agenda" element={<AgendaPage />} />
           <Route path="tarefas" element={<TasksPage />} />
           <Route path="rotina" element={<RoutinesPage />} />
           <Route path="despensa" element={<PantryPage />} />

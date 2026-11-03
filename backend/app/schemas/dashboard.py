@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Self
 from pydantic import BaseModel, Field
 
 from app.schemas.common import MoneyTotal
+from app.schemas.event import EventOccurrenceRead
 from app.schemas.finance import BudgetAlertRead, MonthTotalsRead, TransactionRead
 from app.schemas.pantry import PantryItemRead
 from app.schemas.pet import PetReminderRead
@@ -99,6 +100,15 @@ class FinancePanelRead(BaseModel):
     )
 
 
+class AgendaPanelRead(BaseModel):
+    upcoming: Preview[EventOccurrenceRead] = Field(
+        description=(
+            "Ocorrências da agenda de hoje até hoje + 7 dias (fixo, não depende de `within`), na ordem de "
+            "/events."
+        )
+    )
+
+
 class DashboardRead(BaseModel):
     date: datetime.date = Field(description="Hoje, no fuso do servidor.")
     tasks: TasksPanelRead
@@ -107,6 +117,7 @@ class DashboardRead(BaseModel):
     shopping: ShoppingPanelRead
     pets: PetsPanelRead
     finance: FinancePanelRead
+    agenda: AgendaPanelRead
 
     @classmethod
     def of(cls, dashboard: "Dashboard") -> Self:
@@ -140,5 +151,8 @@ class DashboardRead(BaseModel):
                 upcoming=Preview[TransactionRead].of(dashboard.upcoming_bills, TransactionRead.of),
                 month=MonthTotalsRead.of(dashboard.month),
                 budget_alerts=Preview[BudgetAlertRead].of(dashboard.budget_alerts, BudgetAlertRead.of_alert),
+            ),
+            agenda=AgendaPanelRead(
+                upcoming=Preview[EventOccurrenceRead].of(dashboard.agenda, EventOccurrenceRead.of)
             ),
         )

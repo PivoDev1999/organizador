@@ -165,6 +165,11 @@ def list_upcoming_preview(
     return [_view(item, settings, today) for item in items], total
 
 
+def list_bills_between(db: Session, user_id: uuid.UUID, first: date, last: date) -> list[Transaction]:
+    """Pending expenses due from `first` to `last` (inclusive): the rule of `list_upcoming` on a range."""
+    return transaction_repo.list_upcoming(db, user_id, last, first_day=first)
+
+
 def list_categories(db: Session, user_id: uuid.UUID) -> list[str]:
     return transaction_repo.distinct_categories(db, user_id)
 

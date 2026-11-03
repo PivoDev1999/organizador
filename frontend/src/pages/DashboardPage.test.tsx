@@ -1,8 +1,10 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Budget, Dashboard, MonthSummary, RoutineToday, Task } from "@/api/types";
+import type { AgendaEvent, Budget, Dashboard, MonthSummary, RoutineToday, Task } from "@/api/types";
 import { setToken } from "@/auth/token";
+import { addDays, relativeDayLabel } from "@/lib/calendar";
+import { localToday } from "@/lib/today";
 import { demoUser, jsonResponse, mockApi, renderWithProviders } from "@/test/utils";
 import { DashboardPage } from "./DashboardPage";
 
@@ -33,6 +35,24 @@ const routine = (id: string, name: string, doneToday: boolean): RoutineToday => 
   created_at: STAMP,
   updated_at: STAMP,
   done_today: doneToday,
+});
+
+// The agenda card says "Hoje" and "Amanhã" by the device's date (like the agenda page), not the
+// dashboard's `date`.
+const TODAY = localToday();
+
+const agendaEvent = (id: string, title: string, startTime: string | null, location: string | null): AgendaEvent => ({
+  id,
+  title,
+  description: null,
+  location,
+  starts_on: "2026-10-01",
+  start_time: startTime,
+  end_time: null,
+  recurrence: "weekly",
+  repeat_until: null,
+  created_at: STAMP,
+  updated_at: STAMP,
 });
 
 const totals = (total: string, paid: string, pending: string) => ({ total, paid, pending });
@@ -74,6 +94,16 @@ function makeDashboard(routines: RoutineToday[]): Dashboard {
         balance: { total: "-200.00", paid: "1000.00" },
       },
       budget_alerts: { items: [], total: 0 },
+    },
+    agenda: {
+      upcoming: {
+        items: [
+          { date: TODAY, event: agendaEvent("ev1", "Feira", null, null) },
+          { date: addDays(TODAY, 1), event: agendaEvent("ev2", "Dentista", "14:30:00", "Clínica Sorriso") },
+          { date: addDays(TODAY, 3), event: agendaEvent("ev3", "Yoga", "07:00:00", null) },
+        ],
+        total: 3,
+      },
     },
   };
 }
@@ -137,6 +167,12 @@ describe("DashboardPage", () => {
     expect(within(pets).getByText("Rex")).toBeInTheDocument();
     expect(within(pets).getByText(/Vacina/)).toBeInTheDocument();
     expect(within(pets).getByText("atrasado")).toBeInTheDocument();
+    const agenda = section("Agenda");
+    const agendaRows = within(agenda).getAllByRole("listitem");
+    expect(agendaRows[0]).toHaveTextContent("FeiraHojeDia inteiro");
+    expect(agendaRows[1]).toHaveTextContent("DentistaLocal:Clínica SorrisoAmanhã14:30");
+    expect(agendaRows[2]).toHaveTextContent(`Yoga${relativeDayLabel(addDays(TODAY, 3), TODAY)}07:00`);
+    expect(within(agenda).getByRole("link", { name: /Ver agenda/ })).toHaveAttribute("href", "/agenda");
     expect(within(section("Despensa")).getByText("Nada vencido, vencendo ou acabando.")).toBeInTheDocument();
     expect(within(section("Contas a pagar")).getByText(/Nenhuma conta a pagar/)).toBeInTheDocument();
     expect(within(section("Resumo do mês")).getByText("-R$ 200,00")).toHaveClass("text-red-700");

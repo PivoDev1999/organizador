@@ -14,7 +14,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 def get_dashboard(
     query: Annotated[DashboardQuery, Query()], db: DbSession, settings: SettingsDep, current_user: CurrentUser
 ) -> DashboardRead:
-    """Resumo do dia: tarefas, rotinas, despensa, mercado, pets e finanças, com as mesmas regras dos
+    """Resumo do dia: tarefas, rotinas, despensa, mercado, pets, finanças e agenda, com as mesmas regras dos
     endpoints de cada módulo.
 
     As listas trazem até `limit` itens e o `total` completo (as rotinas de hoje vêm todas). Todos os

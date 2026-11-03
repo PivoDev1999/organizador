@@ -3818,6 +3818,367 @@
         }
       }
     },
+    "/api/events": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "List Events",
+        "description": "Ocorrências dos eventos entre `from` e `to` (inclusive, até 366 dias), sem paginação.\n\nUm evento que se repete aparece uma vez por dia em que acontece. Ordem: data, eventos de dia inteiro\nprimeiro, depois horário de início, título e id.",
+        "operationId": "list_events_api_events_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia (inclusive), AAAA-MM-DD.",
+              "title": "From"
+            },
+            "description": "Primeiro dia (inclusive), AAAA-MM-DD."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia (inclusive); no máximo 366 dias no total.",
+              "title": "To"
+            },
+            "description": "Último dia (inclusive); no máximo 366 dias no total."
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Busca no título, na descrição e no local, sem diferenciar maiúsculas.",
+              "title": "Q"
+            },
+            "description": "Busca no título, na descrição e no local, sem diferenciar maiúsculas."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventOccurrenceRead"
+                  },
+                  "title": "Response List Events Api Events Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Create Event",
+        "operationId": "create_event_api_events_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/{event_id}": {
+      "get": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Get Event",
+        "operationId": "get_event_api_events__event_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Update Event",
+        "operationId": "update_event_api_events__event_id__patch",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "events"
+        ],
+        "summary": "Delete Event",
+        "operationId": "delete_event_api_events__event_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/calendar": {
+      "get": {
+        "tags": [
+          "calendar"
+        ],
+        "summary": "Get Calendar",
+        "description": "Tudo o que cai entre `from` e `to` (inclusive, até 366 dias), só leitura. Só entram itens com data\ndentro de `[from, to]`: tarefas, contas e lembretes atrasados (de antes de `from`) ficam de fora; os\natrasados aparecem no Painel (`GET /api/dashboard`).\n\n- `event`: ocorrências da agenda;\n- `task`: tarefas não concluídas com prazo no intervalo;\n- `bill`: despesas não pagas com vencimento no intervalo;\n- `pet`: lembretes dos pets (só o evento mais recente de cada série), pela próxima data.\n\nOrdem: data, itens sem horário primeiro, depois horário; empates na ordem event, task, bill, pet.\nTudo é lido num mesmo instante (uma transação só de leitura, REPEATABLE READ).",
+        "operationId": "get_calendar_api_calendar_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia (inclusive), AAAA-MM-DD.",
+              "title": "From"
+            },
+            "description": "Primeiro dia (inclusive), AAAA-MM-DD."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia (inclusive); no máximo 366 dias no total.",
+              "title": "To"
+            },
+            "description": "Último dia (inclusive); no máximo 366 dias no total."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "$ref": "#/components/schemas/CalendarEventItem"
+                      },
+                      {
+                        "$ref": "#/components/schemas/CalendarTaskItem"
+                      },
+                      {
+                        "$ref": "#/components/schemas/CalendarBillItem"
+                      },
+                      {
+                        "$ref": "#/components/schemas/CalendarPetItem"
+                      }
+                    ],
+                    "discriminator": {
+                      "propertyName": "kind",
+                      "mapping": {
+                        "event": "#/components/schemas/CalendarEventItem",
+                        "task": "#/components/schemas/CalendarTaskItem",
+                        "bill": "#/components/schemas/CalendarBillItem",
+                        "pet": "#/components/schemas/CalendarPetItem"
+                      }
+                    }
+                  },
+                  "title": "Response Get Calendar Api Calendar Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/files": {
       "get": {
         "tags": [
@@ -4074,7 +4435,7 @@
           "dashboard"
         ],
         "summary": "Get Dashboard",
-        "description": "Resumo do dia: tarefas, rotinas, despensa, mercado, pets e finanças, com as mesmas regras dos\nendpoints de cada módulo.\n\nAs listas trazem até `limit` itens e o `total` completo (as rotinas de hoje vêm todas). Todos os\nnúmeros são lidos num mesmo instante (uma transação só de leitura, REPEATABLE READ).",
+        "description": "Resumo do dia: tarefas, rotinas, despensa, mercado, pets, finanças e agenda, com as mesmas regras dos\nendpoints de cada módulo.\n\nAs listas trazem até `limit` itens e o `total` completo (as rotinas de hoje vêm todas). Todos os\nnúmeros são lidos num mesmo instante (uma transação só de leitura, REPEATABLE READ).",
         "operationId": "get_dashboard_api_dashboard_get",
         "security": [
           {
@@ -4138,6 +4499,19 @@
   },
   "components": {
     "schemas": {
+      "AgendaPanelRead": {
+        "properties": {
+          "upcoming": {
+            "$ref": "#/components/schemas/Preview_EventOccurrenceRead_",
+            "description": "Ocorrências da agenda de hoje até hoje + 7 dias (fixo, não depende de `within`), na ordem de /events."
+          }
+        },
+        "type": "object",
+        "required": [
+          "upcoming"
+        ],
+        "title": "AgendaPanelRead"
+      },
       "BackupState": {
         "type": "string",
         "enum": [
@@ -4595,6 +4969,271 @@
         "title": "BudgetUpdate",
         "description": "Only the amount changes. Category and month are the budget's identity: delete and create."
       },
+      "CalendarBillItem": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "Horário; null para itens de dia inteiro."
+          },
+          "kind": {
+            "type": "string",
+            "const": "bill",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "amount": {
+            "type": "string",
+            "maximum": 9999999999.99,
+            "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+            "format": "decimal",
+            "title": "Amount",
+            "description": "Valor em reais com até 2 casas, como texto.",
+            "examples": [
+              "1.00"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "title",
+          "time",
+          "kind",
+          "id",
+          "amount",
+          "category"
+        ],
+        "title": "CalendarBillItem",
+        "description": "A pending expense due on `date` (`id` is the transaction). `title` is the description, or the\ncategory when there is none."
+      },
+      "CalendarEventItem": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "Horário; null para itens de dia inteiro."
+          },
+          "kind": {
+            "type": "string",
+            "const": "event",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/EventRecurrence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "title",
+          "time",
+          "kind",
+          "id",
+          "end_time",
+          "location",
+          "recurrence"
+        ],
+        "title": "CalendarEventItem",
+        "description": "One occurrence of an agenda event (`id` is the event: GET /api/events/{id})."
+      },
+      "CalendarPetItem": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "Horário; null para itens de dia inteiro."
+          },
+          "kind": {
+            "type": "string",
+            "const": "pet",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "pet_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pet Id"
+          },
+          "pet_name": {
+            "type": "string",
+            "title": "Pet Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/PetEventType"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "title",
+          "time",
+          "kind",
+          "id",
+          "pet_id",
+          "pet_name",
+          "type",
+          "description"
+        ],
+        "title": "CalendarPetItem",
+        "description": "A pet reminder due on `date` (`id` is the pet event, `pet_id` its pet). `title` is the pet name."
+      },
+      "CalendarTaskItem": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time",
+            "description": "Horário; null para itens de dia inteiro."
+          },
+          "kind": {
+            "type": "string",
+            "const": "task",
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/TaskPriority"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "title",
+          "time",
+          "kind",
+          "id",
+          "status",
+          "priority"
+        ],
+        "title": "CalendarTaskItem",
+        "description": "A task not done, due on `date` (`id` is the task)."
+      },
       "CategoryTotalsRead": {
         "properties": {
           "total": {
@@ -4679,6 +5318,9 @@
           },
           "finance": {
             "$ref": "#/components/schemas/FinancePanelRead"
+          },
+          "agenda": {
+            "$ref": "#/components/schemas/AgendaPanelRead"
           }
         },
         "type": "object",
@@ -4689,7 +5331,8 @@
           "pantry",
           "shopping",
           "pets",
-          "finance"
+          "finance",
+          "agenda"
         ],
         "title": "DashboardRead"
       },
@@ -4729,6 +5372,309 @@
         ],
         "title": "DatabaseStatusRead"
       },
+      "EventCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On",
+            "description": "Dia do evento (o primeiro, se ele se repete)."
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time",
+            "description": "Horário de início; sem ele, o evento é de dia inteiro."
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time",
+            "description": "Horário de término, no mesmo dia; exige start_time e deve ser depois dele."
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/EventRecurrence",
+            "description": "Repetição a partir de starts_on: none, weekly (a cada 7 dias), monthly (mesmo dia do mês; em meses mais curtos, o último dia) ou yearly (29/02 cai em 28/02 nos anos não bissextos).",
+            "default": "none"
+          },
+          "repeat_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeat Until",
+            "description": "Último dia da repetição (inclusive); null repete sem fim. Só para eventos que se repetem, e não antes de starts_on."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "starts_on"
+        ],
+        "title": "EventCreate"
+      },
+      "EventOccurrenceRead": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date",
+            "description": "Dia desta ocorrência."
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventRead"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "event"
+        ],
+        "title": "EventOccurrenceRead",
+        "description": "One day on which an event happens. A recurring event shows up once per day in the range."
+      },
+      "EventRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time"
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/EventRecurrence"
+          },
+          "repeat_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeat Until"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "location",
+          "starts_on",
+          "start_time",
+          "end_time",
+          "recurrence",
+          "repeat_until",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EventRead"
+      },
+      "EventRecurrence": {
+        "type": "string",
+        "enum": [
+          "none",
+          "weekly",
+          "monthly",
+          "yearly"
+        ],
+        "title": "EventRecurrence"
+      },
+      "EventUpdate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "starts_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Starts On"
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Time",
+            "description": "Horário de início; sem ele, o evento é de dia inteiro."
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Time",
+            "description": "Horário de término, no mesmo dia; exige start_time e deve ser depois dele."
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/EventRecurrence",
+            "description": "Repetição a partir de starts_on: none, weekly (a cada 7 dias), monthly (mesmo dia do mês; em meses mais curtos, o último dia) ou yearly (29/02 cai em 28/02 nos anos não bissextos)."
+          },
+          "repeat_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repeat Until",
+            "description": "Último dia da repetição (inclusive); null repete sem fim. Só para eventos que se repetem, e não antes de starts_on."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "EventUpdate",
+        "description": "Partial update: only the fields present in the body change (see `model_fields_set`).\n\n`title`, `starts_on` and `recurrence` may be omitted but not sent as null (NotNull, 422). The others\naccept null to clear the value. Times and repetition are checked by the service on the combined\nstate (stored row + changes): turning a repetition off (`recurrence: none`) while the event has a\n`repeat_until` is a 422, unless the same body sends `repeat_until: null`."
+      },
       "FileEntityType": {
         "type": "string",
         "enum": [
@@ -4738,7 +5684,8 @@
           "shopping_item",
           "pet",
           "pet_event",
-          "transaction"
+          "transaction",
+          "event"
         ],
         "title": "FileEntityType"
       },
@@ -5998,6 +6945,28 @@
           "total"
         ],
         "title": "Preview[BudgetAlertRead]"
+      },
+      "Preview_EventOccurrenceRead_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EventOccurrenceRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Quantidade total, inclusive os que ficaram de fora de `items`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "Preview[EventOccurrenceRead]"
       },
       "Preview_PantryItemRead_": {
         "properties": {

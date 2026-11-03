@@ -66,6 +66,10 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
   - Página "Status do sistema" (`/status`, via `GET /api/status`, com login): versão, banco, arquivos e último backup; `GET /api/health` continua público e leve
   - Logs em `key=value` com `request_id` do Nginx até a API, sem query string (README, seção "Logs")
 
+## Extras
+- [x] Agenda (`events`): compromissos com data, horário opcional, local e repetição (semanal, mensal, anual); calendário do mês que junta compromissos, prazos de Afazeres, contas a pagar e lembretes dos Pets (`GET /api/calendar`); card no Painel com hoje e os próximos 7 dias
+  - Melhoria futura: carregar as rotas do frontend sob demanda (`React.lazy`); o bundle principal passou de 500 kB com a Agenda
+
 ## Fase 6 — IA (diferencial de portfólio)
 - [ ] Modelo local com Ollama (funciona sem internet), API externa como opcional
 - [ ] Leitura de cupom fiscal por foto → despensa + despesa

@@ -61,3 +61,62 @@ export function formatMonthName(month: string): string {
 export function defaultDayOf(month: string, today: string): string {
   return today.startsWith(month) ? today : `${month}-01`;
 }
+
+function toUtc(value: string): Date | null {
+  const parts = dateParts(value);
+  return parts ? new Date(Date.UTC(parts.year, parts.month - 1, parts.day)) : null;
+}
+
+function fromUtc(date: Date): string {
+  const year = String(date.getUTCFullYear()).padStart(4, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/** "YYYY-MM-DD" for a valid date text; null otherwise (e.g. an edited URL with "2026-02-31"). */
+export function parseDate(value: string | null | undefined): string | null {
+  const date = value ? toUtc(value) : null;
+  return date && fromUtc(date) === value ? value : null;
+}
+
+/** ("2026-10-31", 1) → "2026-11-01". Computed in UTC, so daylight saving never skips a day. */
+export function addDays(value: string, days: number): string {
+  const date = toUtc(value);
+  if (!date) return value;
+  date.setUTCDate(date.getUTCDate() + days);
+  return fromUtc(date);
+}
+
+/** 0 = domingo ... 6 = sábado (same numbering as WEEKDAY_SHORT). */
+export function weekdayOf(value: string): number {
+  return toUtc(value)?.getUTCDay() ?? 0;
+}
+
+/**
+ * Days of a month view: whole weeks from Sunday to Saturday, starting on the Sunday on or before the
+ * 1st and ending on the Saturday on or after the last day (4 to 6 weeks).
+ */
+export function monthGridDays(month: string): string[] {
+  const first = parseMonth(month) ? `${month}-01` : null;
+  if (!first) return [];
+  const last = addDays(`${shiftMonth(month, 1)}-01`, -1);
+  const start = addDays(first, -weekdayOf(first));
+  const end = addDays(last, 6 - weekdayOf(last));
+  const days: string[] = [];
+  for (let day = start; day <= end; day = addDays(day, 1)) days.push(day);
+  return days;
+}
+
+const LONG_WEEKDAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"] as const;
+
+/** Day relative to `today`: "Hoje", "Amanhã", or weekday plus date ("Sexta, 07/11"). */
+export function relativeDayLabel(value: string, today: string): string {
+  if (value === today) return "Hoje";
+  if (value === addDays(today, 1)) return "Amanhã";
+  const parts = dateParts(value);
+  if (!parts) return value;
+  const day = String(parts.day).padStart(2, "0");
+  const month = String(parts.month).padStart(2, "0");
+  return `${LONG_WEEKDAYS[weekdayOf(value)]}, ${day}/${month}`;
+}

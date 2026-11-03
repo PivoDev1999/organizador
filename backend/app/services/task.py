@@ -49,6 +49,12 @@ def list_open_due_on(db: Session, user_id: uuid.UUID, day: date, limit: int) -> 
     return task_repo.list_for_user(db, user_id, filters, TaskSort.DUE_DATE, limit, 0)
 
 
+def list_open_due_between(db: Session, user_id: uuid.UUID, first: date, last: date) -> list[Task]:
+    """Every task not done with a due date from `first` to `last` (inclusive), by due date and id."""
+    filters = TaskFilters(due_from=first, due_to=last, open_only=True)
+    return task_repo.list_all_for_user(db, user_id, filters, TaskSort.DUE_DATE)
+
+
 def count_with_status(db: Session, user_id: uuid.UUID, status: TaskStatus) -> int:
     return task_repo.count_for_user(db, user_id, TaskFilters(statuses=[status.value]))
 

@@ -17,6 +17,7 @@ DELETE_URLS = {
     FileEntityType.PET: "/api/pets/{id}",
     FileEntityType.PET_EVENT: "/api/pets/{pet_id}/events/{id}",
     FileEntityType.TRANSACTION: "/api/transactions/{id}",
+    FileEntityType.EVENT: "/api/events/{id}",
 }
 
 

@@ -5,7 +5,9 @@ import { Card } from "@/components/Card";
 import { ErrorState } from "@/components/ErrorState";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/Spinner";
+import { useToday } from "@/hooks/useToday";
 import { formatLongDate, monthOf } from "@/lib/format";
+import { AgendaCard } from "./dashboard/AgendaCard";
 import { BillsCard } from "./dashboard/BillsCard";
 import { BudgetChart, CategoryChart, ChartSlot } from "./dashboard/LazyCharts";
 import { MonthCard } from "./dashboard/MonthCard";
@@ -34,6 +36,7 @@ function DashboardSkeleton() {
 export function DashboardPage() {
   const { user } = useAuth();
   const dashboard = useDashboard();
+  const today = useToday();
   const firstName = user?.name.trim().split(/\s+/)[0];
   const greeting = firstName ? `Olá, ${firstName}!` : "Olá!";
   const data = dashboard.data;
@@ -65,6 +68,7 @@ export function DashboardPage() {
       {data && (
         <div className={GRID}>
           <TasksCard tasks={data.tasks} />
+          <AgendaCard upcoming={data.agenda.upcoming} today={today} />
           <RoutinesCard routines={data.routines} />
           <BillsCard upcoming={data.finance.upcoming} />
           <MonthCard month={data.finance.month} />

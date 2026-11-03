@@ -33,6 +33,7 @@ Projeto de portfólio: deve seguir práticas de mercado (código limpo, testes, 
 6. Pets (`pets`, `pet_events`; gastos ficam em `transactions` com `pet_id`)
 7. Finanças (`transactions`, `budgets`)
 8. Arquivos (`files`, polimórfica: `entity_type` + `entity_id`)
+9. Agenda (`events`; o calendário também mostra prazos de tarefas, contas e lembretes dos pets)
 
 ## Estrutura de pastas
 ```

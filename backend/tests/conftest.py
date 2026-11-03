@@ -40,6 +40,7 @@ from app.core.security import hash_password  # noqa: E402
 from app.core.storage import get_storage  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (  # noqa: E402
+    Event,
     PantryItem,
     Pet,
     PetEvent,
@@ -215,6 +216,8 @@ def make_entity(db_session: Session) -> Callable[..., uuid.UUID]:
                     due_date=date(2026, 1, 1),
                     pet_id=pet_id,
                 )
+            case FileEntityType.EVENT:
+                record = Event(user_id=uid, title="Consulta", starts_on=date(2026, 1, 1), **fields)
         db_session.add(record)
         db_session.commit()
         return record.id

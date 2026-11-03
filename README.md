@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/PivoDev1999/organizador/actions/workflows/ci.yml/badge.svg)](https://github.com/PivoDev1999/organizador/actions/workflows/ci.yml)
 
-Sistema pessoal de organização da casa: afazeres, rotina, mercado, despensa, pets, finanças e arquivos.
+Sistema pessoal de organização da casa: afazeres, rotina, mercado, despensa, pets, finanças, agenda e
+arquivos.
 
 Roda num computador de casa (o "servidor") e é acessado pelos outros aparelhos da mesma rede Wi-Fi.
 Não há deploy em nuvem e nada fica exposto para a internet. Funciona sem internet.
@@ -514,10 +515,16 @@ Nginx (`web`) fica exposto na rede local. A API não publica porta: só o `web` 
 interna do Docker (`proxy`, sub-rede `PROXY_SUBNET`).
 
 O painel do dia sai em `GET /api/dashboard?within=7&limit=5`: tarefas atrasadas e de hoje, rotinas,
-alertas da despensa, mercado, lembretes dos pets, contas a pagar, totais do mês e orçamentos em alerta
-(`warning` com gasto de 80% a 100% do orçamento, `exceeded` acima dele, comparando os valores exatos),
-com as mesmas regras dos endpoints de cada módulo, lidos todos no mesmo instante (uma transação só de
-leitura, REPEATABLE READ).
+alertas da despensa, mercado, lembretes dos pets, contas a pagar, totais do mês, orçamentos em alerta
+(`warning` com gasto de 80% a 100% do orçamento, `exceeded` acima dele, comparando os valores exatos) e
+a agenda de hoje até hoje + 7 dias (fixo, não depende de `within`), com as mesmas regras dos endpoints de
+cada módulo, lidos todos no mesmo instante (uma transação só de leitura, REPEATABLE READ).
+
+A agenda fica em `/api/events` (CRUD; `GET /api/events?from=AAAA-MM-DD&to=AAAA-MM-DD&q=` devolve as
+ocorrências do intervalo, com os eventos que se repetem expandidos dia a dia). `GET /api/calendar?from=&to=`
+junta, só para leitura e no mesmo instante, as ocorrências da agenda (`kind: event`), as tarefas não
+concluídas com prazo no intervalo (`task`), as despesas não pagas (`bill`) e os lembretes dos pets
+(`pet`). Nos dois, `from` e `to` são obrigatórios e inclusivos, com no máximo 366 dias.
 
 ## Frontend
 
@@ -654,6 +661,11 @@ FKs opcionais, `ON DELETE SET NULL (pet_id)` (PostgreSQL 15+) limpa só o víncu
 Rotinas mensais com `day_of_month` maior que o último dia do mês (29 a 31) caem no último dia: a do dia 31
 vale em 30/04 e em 28/02 (29/02 em ano bissexto).
 
+Eventos da agenda que se repetem seguem `app/core/agenda.py`: semanal a cada 7 dias a partir de
+`starts_on`; mensal no mesmo dia, caindo no último dia nos meses mais curtos (31/01 → 28/02 → 31/03);
+anual no mesmo dia e mês, com 29/02 em 28/02 nos anos não bissextos. Nunca antes de `starts_on` nem depois
+de `repeat_until`.
+
 Um evento de pet com `next_due_on` é lembrete até existir um evento mais recente (por `occurred_on`,
 `created_at` e `id`) do mesmo pet, com o mesmo `type` e a mesma descrição normalizada (espaços nas pontas
 removidos e minúsculas Unicode, via `lower(... COLLATE "pt-BR-x-icu")`; sem descrição conta como uma série):
@@ -668,6 +680,7 @@ erDiagram
     users ||--o{ pets : ""
     users ||--o{ transactions : ""
     users ||--o{ budgets : ""
+    users ||--o{ events : ""
     users ||--o{ files : ""
     routines ||--o{ routine_logs : "CASCADE"
     pets ||--o{ pet_events : "CASCADE"
@@ -768,6 +781,18 @@ erDiagram
         varchar category
         date month "sempre dia 1"
         numeric amount "12,2, >= 0"
+    }
+    events {
+        uuid id PK
+        uuid user_id FK
+        varchar title
+        text description
+        varchar location
+        date starts_on
+        time start_time "null = dia inteiro"
+        time end_time "exige start_time, > start_time"
+        varchar recurrence "none | weekly | monthly | yearly"
+        date repeat_until "inclusive; só com repetição"
     }
     files {
         uuid id PK
