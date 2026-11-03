@@ -66,6 +66,19 @@ export type BudgetCreate = Schemas["BudgetCreate"];
 export type BudgetUpdate = Schemas["BudgetUpdate"];
 export type BudgetCopy = Schemas["BudgetCopyRead"];
 
+export type AgendaEvent = Schemas["EventRead"];
+export type EventRecurrence = Schemas["EventRecurrence"];
+export type EventCreate = Schemas["EventCreate"];
+export type EventUpdate = Schemas["EventUpdate"];
+export type EventOccurrence = Schemas["EventOccurrenceRead"];
+export type CalendarEventItem = Schemas["CalendarEventItem"];
+export type CalendarTaskItem = Schemas["CalendarTaskItem"];
+export type CalendarBillItem = Schemas["CalendarBillItem"];
+export type CalendarPetItem = Schemas["CalendarPetItem"];
+/** One entry of GET /api/calendar, discriminated by `kind`. */
+export type CalendarItem = CalendarEventItem | CalendarTaskItem | CalendarBillItem | CalendarPetItem;
+export type CalendarKind = CalendarItem["kind"];
+
 /** Same shape as every `Page_*Read_` of the API: one page plus the total of matches. */
 export interface Page<T> {
   items: T[];

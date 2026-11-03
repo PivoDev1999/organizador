@@ -1,4 +1,6 @@
 import type {
+  CalendarKind,
+  EventRecurrence,
   PantrySort,
   PetEventType,
   RoutineFrequency,
@@ -73,6 +75,21 @@ export const TRANSACTION_SORT_LABELS: Partial<Record<TransactionSort, string>> =
   due_date: "Vencimento",
   "-amount": "Maior valor",
   amount: "Menor valor",
+};
+
+export const EVENT_RECURRENCE_LABELS: Record<EventRecurrence, string> = {
+  none: "Não repete",
+  weekly: "Toda semana",
+  monthly: "Todo mês",
+  yearly: "Todo ano",
+};
+
+/** Kinds of the agenda's calendar, in the legend's order. */
+export const CALENDAR_KIND_LABELS: Record<CalendarKind, string> = {
+  event: "Compromisso",
+  task: "Tarefa",
+  bill: "Conta",
+  pet: "Pet",
 };
 
 /** Typed keys of a label map (Object.keys returns string[]). */

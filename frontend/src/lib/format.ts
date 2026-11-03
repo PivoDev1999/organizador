@@ -51,6 +51,20 @@ export function formatLongDate(value: string | null | undefined): string {
   );
 }
 
+/** "14:30:00" (API) or "14:30" → "14:30"; null or invalid → "". */
+export function formatTime(value: string | null | undefined): string {
+  const match = value?.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+  return match ? `${match[1]}:${match[2]}` : "";
+}
+
+/** Time of an agenda item: "14:30", "14:30–15:30", or "Dia inteiro" without a start. */
+export function formatTimeRange(start: string | null | undefined, end?: string | null): string {
+  const from = formatTime(start);
+  if (!from) return "Dia inteiro";
+  const to = formatTime(end);
+  return to ? `${from}–${to}` : from;
+}
+
 /** "2026-10-27" → "2026-10" (the month parameter of the finance endpoints). */
 export function monthOf(value: string): string {
   return value.slice(0, 7);
