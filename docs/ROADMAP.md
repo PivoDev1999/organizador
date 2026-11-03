@@ -57,7 +57,7 @@ Marque `[x]` ao concluir. Use `/proxima-fase` no Claude Code para saber onde par
 - [x] Servir os assets do Swagger (`/api/docs`) localmente (pacote `swagger-ui-dist`, sem CDN)
 - [x] Limite de tentativas no `POST /api/auth/login` no proxy (`limit_req` do Nginx: 5 por minuto por IP, 429)
 - [x] `docker-compose.yml` sobe tudo; serviços com `restart: unless-stopped` (voltam sozinhos após reiniciar o PC)
-- [ ] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
+- [x] IP fixo para o servidor (reserva de DHCP no roteador) e teste de acesso pelo celular
 - [x] Backup diário automático (pg_dump + cópia do bucket do Garage via S3) com rotação dos arquivos antigos
   - Serviço `backup` (03:00 em `APP_TIMEZONE`, supercronic), em `backups/AAAA-MM-DD_HHMMSS/`; retenção GFS 7 diários + 4 semanais + 6 mensais; `backups/last_success.json` para a observabilidade
 - [x] Script de restauração de backup testado
