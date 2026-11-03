@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models import (
     Base,
     Budget,
+    Event,
     File,
     PantryItem,
     Pet,
@@ -100,6 +101,10 @@ def new_budget(session: Session, user: User, **fields) -> Budget:
     return Budget(**{"user_id": user.id, **defaults, **fields})
 
 
+def new_event(session: Session, user: User, **fields) -> Event:
+    return Event(**{"user_id": user.id, "title": "Consulta", "starts_on": TODAY, **fields})
+
+
 def new_file(session: Session, user: User, **fields) -> File:
     defaults = {
         "entity_type": "task",
@@ -167,6 +172,19 @@ CHECK_VIOLATIONS: list[tuple[Factory, dict[str, Any], str]] = [
     (new_transaction, {"amount": Decimal("-10.00")}, "ck_transactions_amount_positive"),
     (new_budget, {"month": date(2026, 10, 15)}, "ck_budgets_month_first_day"),
     (new_budget, {"amount": Decimal("-1.00")}, "ck_budgets_amount_non_negative"),
+    (new_event, {"recurrence": "daily"}, "ck_events_recurrence"),
+    (new_event, {"end_time": time(10, 0)}, "ck_events_end_time_after_start_time"),
+    (
+        new_event,
+        {"start_time": time(10, 0), "end_time": time(10, 0)},
+        "ck_events_end_time_after_start_time",
+    ),
+    (new_event, {"repeat_until": date(2026, 12, 31)}, "ck_events_repeat_until_matches_recurrence"),
+    (
+        new_event,
+        {"recurrence": "weekly", "repeat_until": date(2026, 10, 18)},
+        "ck_events_repeat_until_matches_recurrence",
+    ),
     (new_file, {"entity_type": "budget"}, "ck_files_entity_type"),
     (new_file, {"size_bytes": -1}, "ck_files_size_bytes_non_negative"),
 ]
@@ -187,7 +205,11 @@ VALID_ROWS: list[tuple[Factory, dict[str, Any]]] = [
     (new_pet_event, {"next_due_on": TODAY}),
     (new_transaction, {"type": "income", "amount": Decimal("0.01")}),
     (new_budget, {"amount": Decimal("0")}),
+    (new_event, {}),
+    (new_event, {"start_time": time(9, 0), "end_time": time(9, 30)}),
+    (new_event, {"recurrence": "yearly", "repeat_until": TODAY}),
     (new_file, {"size_bytes": 0}),
+    (new_file, {"entity_type": "event"}),
 ]
 
 

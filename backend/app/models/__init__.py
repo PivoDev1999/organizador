@@ -1,6 +1,7 @@
 """ORM models. Import every model here so Alembic autogenerate sees the full metadata."""
 
 from app.models.base import Base, EntityMixin
+from app.models.event import Event, EventRecurrence
 from app.models.file import File, FileEntityType
 from app.models.finance import Budget, Transaction, TransactionSort, TransactionType
 from app.models.pantry import PantryItem, PantrySort
@@ -14,6 +15,8 @@ __all__ = [
     "Base",
     "Budget",
     "EntityMixin",
+    "Event",
+    "EventRecurrence",
     "File",
     "FileEntityType",
     "PantryItem",
