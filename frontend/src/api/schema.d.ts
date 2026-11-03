@@ -850,6 +850,79 @@ export interface paths {
         patch: operations["update_budget_api_budgets__budget_id__patch"];
         trace?: never;
     };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Events
+         * @description Ocorrências dos eventos entre `from` e `to` (inclusive, até 366 dias), sem paginação.
+         *
+         *     Um evento que se repete aparece uma vez por dia em que acontece. Ordem: data, eventos de dia inteiro
+         *     primeiro, depois horário de início, título e id.
+         */
+        get: operations["list_events_api_events_get"];
+        put?: never;
+        /** Create Event */
+        post: operations["create_event_api_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events/{event_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Event */
+        get: operations["get_event_api_events__event_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Event */
+        delete: operations["delete_event_api_events__event_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Event */
+        patch: operations["update_event_api_events__event_id__patch"];
+        trace?: never;
+    };
+    "/api/calendar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calendar
+         * @description Tudo o que cai entre `from` e `to` (inclusive, até 366 dias), só leitura. Só entram itens com data
+         *     dentro de `[from, to]`: tarefas, contas e lembretes atrasados (de antes de `from`) ficam de fora; os
+         *     atrasados aparecem no Painel (`GET /api/dashboard`).
+         *
+         *     - `event`: ocorrências da agenda;
+         *     - `task`: tarefas não concluídas com prazo no intervalo;
+         *     - `bill`: despesas não pagas com vencimento no intervalo;
+         *     - `pet`: lembretes dos pets (só o evento mais recente de cada série), pela próxima data.
+         *
+         *     Ordem: data, itens sem horário primeiro, depois horário; empates na ordem event, task, bill, pet.
+         *     Tudo é lido num mesmo instante (uma transação só de leitura, REPEATABLE READ).
+         */
+        get: operations["get_calendar_api_calendar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/files": {
         parameters: {
             query?: never;
@@ -924,7 +997,7 @@ export interface paths {
         };
         /**
          * Get Dashboard
-         * @description Resumo do dia: tarefas, rotinas, despensa, mercado, pets e finanças, com as mesmas regras dos
+         * @description Resumo do dia: tarefas, rotinas, despensa, mercado, pets, finanças e agenda, com as mesmas regras dos
          *     endpoints de cada módulo.
          *
          *     As listas trazem até `limit` itens e o `total` completo (as rotinas de hoje vêm todas). Todos os
@@ -943,6 +1016,11 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AgendaPanelRead */
+        AgendaPanelRead: {
+            /** @description Ocorrências da agenda de hoje até hoje + 7 dias (fixo, não depende de `within`), na ordem de /events. */
+            upcoming: components["schemas"]["Preview_EventOccurrenceRead_"];
+        };
         /**
          * BackupState
          * @enum {string}
@@ -1145,6 +1223,145 @@ export interface components {
              */
             amount?: string | number;
         };
+        /**
+         * CalendarBillItem
+         * @description A pending expense due on `date` (`id` is the transaction). `title` is the description, or the
+         *     category when there is none.
+         */
+        CalendarBillItem: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Title */
+            title: string;
+            /**
+             * Time
+             * @description Horário; null para itens de dia inteiro.
+             */
+            time: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "bill";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Amount
+             * Format: decimal
+             * @description Valor em reais com até 2 casas, como texto.
+             * @example 1.00
+             */
+            amount: string;
+            /** Category */
+            category: string;
+        };
+        /**
+         * CalendarEventItem
+         * @description One occurrence of an agenda event (`id` is the event: GET /api/events/{id}).
+         */
+        CalendarEventItem: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Title */
+            title: string;
+            /**
+             * Time
+             * @description Horário; null para itens de dia inteiro.
+             */
+            time: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "event";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** End Time */
+            end_time: string | null;
+            /** Location */
+            location: string | null;
+            recurrence: components["schemas"]["EventRecurrence"];
+        };
+        /**
+         * CalendarPetItem
+         * @description A pet reminder due on `date` (`id` is the pet event, `pet_id` its pet). `title` is the pet name.
+         */
+        CalendarPetItem: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Title */
+            title: string;
+            /**
+             * Time
+             * @description Horário; null para itens de dia inteiro.
+             */
+            time: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "pet";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Pet Id
+             * Format: uuid
+             */
+            pet_id: string;
+            /** Pet Name */
+            pet_name: string;
+            type: components["schemas"]["PetEventType"];
+            /** Description */
+            description: string | null;
+        };
+        /**
+         * CalendarTaskItem
+         * @description A task not done, due on `date` (`id` is the task).
+         */
+        CalendarTaskItem: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Title */
+            title: string;
+            /**
+             * Time
+             * @description Horário; null para itens de dia inteiro.
+             */
+            time: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "task";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["TaskStatus"];
+            priority: components["schemas"]["TaskPriority"];
+        };
         /** CategoryTotalsRead */
         CategoryTotalsRead: {
             /**
@@ -1194,6 +1411,7 @@ export interface components {
             shopping: components["schemas"]["ShoppingPanelRead"];
             pets: components["schemas"]["PetsPanelRead"];
             finance: components["schemas"]["FinancePanelRead"];
+            agenda: components["schemas"]["AgendaPanelRead"];
         };
         /** DatabaseStatusRead */
         DatabaseStatusRead: {
@@ -1203,11 +1421,139 @@ export interface components {
             /** Alembic Revision */
             alembic_revision: string | null;
         };
+        /** EventCreate */
+        EventCreate: {
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /** Location */
+            location?: string | null;
+            /**
+             * Starts On
+             * Format: date
+             * @description Dia do evento (o primeiro, se ele se repete).
+             */
+            starts_on: string;
+            /**
+             * Start Time
+             * @description Horário de início; sem ele, o evento é de dia inteiro.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description Horário de término, no mesmo dia; exige start_time e deve ser depois dele.
+             */
+            end_time?: string | null;
+            /**
+             * @description Repetição a partir de starts_on: none, weekly (a cada 7 dias), monthly (mesmo dia do mês; em meses mais curtos, o último dia) ou yearly (29/02 cai em 28/02 nos anos não bissextos).
+             * @default none
+             */
+            recurrence: components["schemas"]["EventRecurrence"];
+            /**
+             * Repeat Until
+             * @description Último dia da repetição (inclusive); null repete sem fim. Só para eventos que se repetem, e não antes de starts_on.
+             */
+            repeat_until?: string | null;
+        };
+        /**
+         * EventOccurrenceRead
+         * @description One day on which an event happens. A recurring event shows up once per day in the range.
+         */
+        EventOccurrenceRead: {
+            /**
+             * Date
+             * Format: date
+             * @description Dia desta ocorrência.
+             */
+            date: string;
+            event: components["schemas"]["EventRead"];
+        };
+        /** EventRead */
+        EventRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Description */
+            description: string | null;
+            /** Location */
+            location: string | null;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on: string;
+            /** Start Time */
+            start_time: string | null;
+            /** End Time */
+            end_time: string | null;
+            recurrence: components["schemas"]["EventRecurrence"];
+            /** Repeat Until */
+            repeat_until: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * EventRecurrence
+         * @enum {string}
+         */
+        EventRecurrence: "none" | "weekly" | "monthly" | "yearly";
+        /**
+         * EventUpdate
+         * @description Partial update: only the fields present in the body change (see `model_fields_set`).
+         *
+         *     `title`, `starts_on` and `recurrence` may be omitted but not sent as null (NotNull, 422). The others
+         *     accept null to clear the value. Times and repetition are checked by the service on the combined
+         *     state (stored row + changes): turning a repetition off (`recurrence: none`) while the event has a
+         *     `repeat_until` is a 422, unless the same body sends `repeat_until: null`.
+         */
+        EventUpdate: {
+            /** Title */
+            title?: string;
+            /** Description */
+            description?: string | null;
+            /** Location */
+            location?: string | null;
+            /**
+             * Starts On
+             * Format: date
+             */
+            starts_on?: string;
+            /**
+             * Start Time
+             * @description Horário de início; sem ele, o evento é de dia inteiro.
+             */
+            start_time?: string | null;
+            /**
+             * End Time
+             * @description Horário de término, no mesmo dia; exige start_time e deve ser depois dele.
+             */
+            end_time?: string | null;
+            /** @description Repetição a partir de starts_on: none, weekly (a cada 7 dias), monthly (mesmo dia do mês; em meses mais curtos, o último dia) ou yearly (29/02 cai em 28/02 nos anos não bissextos). */
+            recurrence?: components["schemas"]["EventRecurrence"];
+            /**
+             * Repeat Until
+             * @description Último dia da repetição (inclusive); null repete sem fim. Só para eventos que se repetem, e não antes de starts_on.
+             */
+            repeat_until?: string | null;
+        };
         /**
          * FileEntityType
          * @enum {string}
          */
-        FileEntityType: "task" | "routine" | "pantry_item" | "shopping_item" | "pet" | "pet_event" | "transaction";
+        FileEntityType: "task" | "routine" | "pantry_item" | "shopping_item" | "pet" | "pet_event" | "transaction" | "event";
         /** FileRead */
         FileRead: {
             /**
@@ -1701,6 +2047,16 @@ export interface components {
         Preview_BudgetAlertRead_: {
             /** Items */
             items: components["schemas"]["BudgetAlertRead"][];
+            /**
+             * Total
+             * @description Quantidade total, inclusive os que ficaram de fora de `items`.
+             */
+            total: number;
+        };
+        /** Preview[EventOccurrenceRead] */
+        Preview_EventOccurrenceRead_: {
+            /** Items */
+            items: components["schemas"]["EventOccurrenceRead"][];
             /**
              * Total
              * @description Quantidade total, inclusive os que ficaram de fora de `items`.
@@ -4515,6 +4871,204 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BudgetRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_events_api_events_get: {
+        parameters: {
+            query: {
+                /** @description Primeiro dia (inclusive), AAAA-MM-DD. */
+                from: string;
+                /** @description Último dia (inclusive); no máximo 366 dias no total. */
+                to: string;
+                /** @description Busca no título, na descrição e no local, sem diferenciar maiúsculas. */
+                q?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventOccurrenceRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_event_api_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_event_api_events__event_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_event_api_events__event_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_event_api_events__event_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EventUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_calendar_api_calendar_get: {
+        parameters: {
+            query: {
+                /** @description Primeiro dia (inclusive), AAAA-MM-DD. */
+                from: string;
+                /** @description Último dia (inclusive); no máximo 366 dias no total. */
+                to: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["CalendarEventItem"] | components["schemas"]["CalendarTaskItem"] | components["schemas"]["CalendarBillItem"] | components["schemas"]["CalendarPetItem"])[];
                 };
             };
             /** @description Validation Error */

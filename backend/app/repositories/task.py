@@ -114,6 +114,12 @@ def list_for_user(
     return list(items), total
 
 
+def list_all_for_user(db: Session, user_id: uuid.UUID, filters: TaskFilters, sort: str) -> list[Task]:
+    """Every task of the user matching the filters (no paging, no count), in the order of `sort`."""
+    stmt = select(Task).where(*_conditions(user_id, filters)).order_by(*_order_by(sort))
+    return list(db.scalars(stmt).all())
+
+
 def count_for_user(db: Session, user_id: uuid.UUID, filters: TaskFilters) -> int:
     """How many of the user's tasks match the filters."""
     return db.scalar(select(func.count()).select_from(Task).where(*_conditions(user_id, filters))) or 0

@@ -8,8 +8,10 @@ from app.api.request_id import RequestIdMiddleware
 from app.api.routers import (
     auth,
     budgets,
+    calendar,
     dashboard,
     docs,
+    events,
     files,
     health,
     pantry,
@@ -64,6 +66,8 @@ app.include_router(shopping.router, prefix="/api")
 app.include_router(pets.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(budgets.router, prefix="/api")
+app.include_router(events.router, prefix="/api")
+app.include_router(calendar.router, prefix="/api")
 app.include_router(files.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
 app.include_router(docs.router)

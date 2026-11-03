@@ -240,3 +240,11 @@ def list_reminders_preview(
     last_day = today + timedelta(days=within)
     reminders = _reminders(pet_repo.list_reminders(db, user_id, last_day, limit), today)
     return reminders, pet_repo.count_reminders(db, user_id, last_day)
+
+
+def list_reminders_between(
+    db: Session, user_id: uuid.UUID, first: date, last: date
+) -> list[tuple[PetEvent, str]]:
+    """Reminders (same series rule as `list_reminders`) due from `first` to `last` (inclusive), each with
+    the pet name, by due date, pet name and id."""
+    return pet_repo.list_reminders(db, user_id, last, first_day=first)

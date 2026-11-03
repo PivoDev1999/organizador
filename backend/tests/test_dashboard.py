@@ -6,7 +6,7 @@ tests/test_dashboard_concurrency.py.
 
 import uuid
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 import pytest
@@ -14,7 +14,18 @@ from sqlalchemy import event
 
 from app.core import clock
 from app.core.finance import BudgetAlertLevel, budget_alert_level
-from app.models import Budget, PantryItem, Pet, PetEvent, Routine, RoutineLog, ShoppingItem, Task, Transaction
+from app.models import (
+    Budget,
+    Event,
+    PantryItem,
+    Pet,
+    PetEvent,
+    Routine,
+    RoutineLog,
+    ShoppingItem,
+    Task,
+    Transaction,
+)
 from app.repositories.snapshot import SnapshotUnavailableError, begin_read_snapshot
 
 URL = "/api/dashboard"
@@ -26,11 +37,12 @@ OCTOBER, NOVEMBER, SEPTEMBER = date(2026, 10, 1), date(2026, 11, 1), date(2026, 
 # Statements of one GET /api/dashboard, counted with the test session (see test_query_ceiling): tasks 5
 # (overdue list+count, due today list+count, doing count) + routines 1 + pantry 4 (one count with three
 # FILTERs, three lists) + shopping 1 + pets 2 + finance 4 (budgets with spent, bills list+count, month
-# totals) = 17. Savepoints are not counted. In production 2 more run: the token's user lookup (here the
-# user is already in the test session) and `SET TRANSACTION` (skipped inside the test savepoints), 19 in
-# all. The ceiling is the exact count, no slack: any new query must update it on purpose. It does not
-# depend on how many rows exist (no N+1).
-QUERY_CEILING = 17
+# totals) + agenda 1 (candidate events; occurrences and total come from expanding them) = 18. Savepoints
+# are not counted. In production 2 more run: the token's user lookup (here the user is already in the
+# test session) and `SET TRANSACTION` (skipped inside the test savepoints), 20 in all. The ceiling is the
+# exact count, no slack: any new query must update it on purpose. It does not depend on how many rows
+# exist (no N+1).
+QUERY_CEILING = 18
 
 EMPTY_PREVIEW = {"items": [], "total": 0}
 ZERO_TOTALS = {"total": "0.00", "paid": "0.00", "pending": "0.00"}
@@ -51,6 +63,7 @@ EMPTY_DASHBOARD = {
         },
         "budget_alerts": EMPTY_PREVIEW,
     },
+    "agenda": {"upcoming": EMPTY_PREVIEW},
 }
 
 
@@ -177,6 +190,9 @@ class Seed:
             self.transaction(due, amount=spent, category=category)
         return self._add(Budget(user_id=self.user_id, category=category, month=month, amount=Decimal(amount)))
 
+    def event(self, title: str, starts: int, **fields) -> Event:
+        return self._add(Event(user_id=self.user_id, title=title, starts_on=day(starts), **fields))
+
     def everything(self) -> None:
         """Several rows in every section (and rows that must stay out of it)."""
         for offset, status in [(-3, "todo"), (-1, "doing"), (-1, "todo"), (-2, "done"), (0, "todo")]:
@@ -217,6 +233,10 @@ class Seed:
         self.budget("Mercado", "100.00", "95.00")
         self.budget("Lazer", "50.00", "80.00")
         self.budget("Saúde", "100.00", "10.00")
+        self.event("Consulta", 0, start_time=time(9, 0))
+        self.event("Aniversário", -400, recurrence="yearly")
+        self.event("Feira", -14, recurrence="weekly")
+        self.event("Viagem", 8)
 
 
 @pytest.fixture
@@ -425,6 +445,23 @@ def test_finance_month_totals(ana, seed, get):
     }
 
 
+def test_agenda_section_covers_today_plus_7_days_whatever_within(ana, seed, get):
+    data = seed(ana[0])
+    weekly = data.event("Feira", -14, recurrence="weekly")  # today and +7
+    data.event("Ontem", -1)
+    meeting = data.event("Reunião", 3, start_time=time(9, 0))
+    data.event("Depois", 8)
+
+    agenda = get(ana[1], within=0, limit=2)["agenda"]["upcoming"]
+
+    assert [(item["date"], item["event"]["id"]) for item in agenda["items"]] == [
+        (day(0).isoformat(), str(weekly.id)),
+        (day(3).isoformat(), str(meeting.id)),
+    ]
+    assert agenda["total"] == 3
+    assert get(ana[1], within=365)["agenda"]["upcoming"]["total"] == 3
+
+
 # --- budget alerts -------------------------------------------------------------------------------
 
 
@@ -587,6 +624,8 @@ def test_each_section_agrees_with_its_source_endpoint(client, ana, seed, get, wi
     assert body["finance"]["upcoming"] == preview(source("transactions/upcoming", within=within))
     summary = source("transactions/summary")
     assert body["finance"]["month"] == {key: value for key, value in summary.items() if key != "by_category"}
+    agenda = source("events", **{"from": today, "to": (TODAY + timedelta(days=7)).isoformat()})
+    assert body["agenda"]["upcoming"] == preview(agenda)
     budgets = {budget["id"]: budget for budget in source("budgets")}
     for alert in body["finance"]["budget_alerts"]["items"]:
         assert {key: value for key, value in alert.items() if key != "level"} == budgets[alert["id"]]
@@ -605,6 +644,7 @@ def test_query_ceiling(client, ana, seed, db_session):
         data.pet_event(data.pet(f"Pet {index}"), "vet", -1, index)
         data.transaction(index)
         data.budget(f"Categoria {index}", "10.00", "9.00")
+        data.event(f"Evento {index}", index, recurrence="weekly")
     statements: list[str] = []
 
     def record(conn, cursor, statement, *args):

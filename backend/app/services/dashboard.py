@@ -1,8 +1,8 @@
 """Dashboard (painel): a summary of the day built only from the other modules' reads. No table of its own.
 
 Every rule comes from the module that owns it (overdue tasks, routine schedule, pantry alerts, reminder
-series, bills to pay, monthly totals, budget alerts); this service only picks "today", the window and
-the list size, and runs all reads in one REPEATABLE READ, READ ONLY transaction
+series, bills to pay, monthly totals, budget alerts, event recurrence); this service only picks "today",
+the window and the list size, and runs all reads in one REPEATABLE READ, READ ONLY transaction
 (`snapshot_repo.begin_read_snapshot`), so every number reflects the same instant: a bill paid by
 another device while the dashboard is being built shows up either as pending in `upcoming` and in the
 month's pending total, or as paid in both, never in both states.
@@ -22,6 +22,7 @@ from app.core.finance import MonthSummary, month_of
 from app.models import Task, TaskStatus
 from app.repositories import snapshot as snapshot_repo
 from app.services import budget as budget_service
+from app.services import event as event_service
 from app.services import pantry as pantry_service
 from app.services import pet as pet_service
 from app.services import routine as routine_service
@@ -29,6 +30,7 @@ from app.services import shopping as shopping_service
 from app.services import task as task_service
 from app.services import transaction as transaction_service
 from app.services.budget import BudgetAlert
+from app.services.event import Occurrence
 from app.services.pantry import PantryAlertsPreview
 from app.services.pet import PetReminder
 from app.services.routine import DueRoutine
@@ -51,11 +53,13 @@ class Dashboard:
     upcoming_bills: tuple[list[TransactionView], int]
     month: MonthSummary
     budget_alerts: tuple[list[BudgetAlert], int]
+    agenda: tuple[list[Occurrence], int]
 
 
 def get_dashboard(db: Session, settings: Settings, user_id: uuid.UUID, within: int, limit: int) -> Dashboard:
     """The user's summary of today. `within` (days) is the window of pantry expiry, pet reminders and
-    bills; `limit` caps each list (routines excepted: the day's score needs all of them).
+    bills; `limit` caps each list (routines excepted: the day's score needs all of them). The agenda
+    always covers today + 7 days (`event_service.UPCOMING_DAYS`), whatever `within` is.
 
     Budget alerts are cut in Python: their level is a pure rule (`budget_alert_level`) applied to the
     month's budgets, which a household counts in tens.
@@ -77,4 +81,5 @@ def get_dashboard(db: Session, settings: Settings, user_id: uuid.UUID, within: i
         upcoming_bills=transaction_service.list_upcoming_preview(db, settings, user_id, today, within, limit),
         month=transaction_service.get_month_totals(db, user_id, month),
         budget_alerts=(alerts[:limit], len(alerts)),
+        agenda=event_service.list_upcoming_preview(db, user_id, today, limit),
     )

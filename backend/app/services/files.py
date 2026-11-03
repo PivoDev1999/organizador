@@ -37,6 +37,7 @@ from app.core.file_types import (
 from app.core.storage import ObjectNotFound, ObjectReader, Storage, StorageError
 from app.models import File
 from app.models.file import FileEntityType
+from app.repositories import event as event_repo
 from app.repositories import file as file_repo
 from app.repositories import pantry as pantry_repo
 from app.repositories import pet as pet_repo
@@ -84,6 +85,7 @@ ENTITY_CHECKS: dict[str, EntityCheck] = {
     FileEntityType.PET: pet_repo.exists_for_user,
     FileEntityType.PET_EVENT: pet_repo.event_exists_for_user,
     FileEntityType.TRANSACTION: transaction_repo.exists_for_user,
+    FileEntityType.EVENT: event_repo.exists_for_user,
 }
 
 

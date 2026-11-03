@@ -213,8 +213,11 @@ def series_description() -> ColumnElement[str | None]:
     return func.lower(func.btrim(PetEvent.description).collate(TEXT_SORT_COLLATION))
 
 
-def _reminders(user_id: uuid.UUID, last_day: date) -> Select[tuple[PetEvent, str]]:
-    """The user's reminders due up to `last_day` (overdue ones included), each with the pet name.
+def _reminders(
+    user_id: uuid.UUID, last_day: date, first_day: date | None = None
+) -> Select[tuple[PetEvent, str]]:
+    """The user's reminders due up to `last_day` (overdue ones included, unless `first_day` sets a lower
+    bound), each with the pet name.
 
     DISTINCT ON keeps the newest event of each (pet, type, normalized description) series (NULL
     descriptions form one series: DISTINCT ON treats NULLs as equal); only then the due-date filter
@@ -235,19 +238,21 @@ def _reminders(user_id: uuid.UUID, last_day: date) -> Select[tuple[PetEvent, str
         .subquery()
     )
     event = aliased(PetEvent, latest)
-    return (
+    stmt = (
         select(event, Pet.name)
         .join(Pet, (Pet.id == event.pet_id) & (Pet.user_id == event.user_id))
         .where(event.next_due_on.is_not(None), event.next_due_on <= last_day)
         .order_by(event.next_due_on.asc(), _sortable_name().asc(), event.id.asc())
     )
+    # Filtered after DISTINCT ON, like the upper bound: the series rule never depends on the range.
+    return stmt if first_day is None else stmt.where(event.next_due_on >= first_day)
 
 
 def list_reminders(
-    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None
+    db: Session, user_id: uuid.UUID, last_day: date, limit: int | None = None, first_day: date | None = None
 ) -> list[tuple[PetEvent, str]]:
     """The reminders of `_reminders` (the first `limit`, or all), each with the pet name."""
-    rows = db.execute(_reminders(user_id, last_day).limit(limit)).all()
+    rows = db.execute(_reminders(user_id, last_day, first_day).limit(limit)).all()
     return [(row[0], row[1]) for row in rows]
 
 

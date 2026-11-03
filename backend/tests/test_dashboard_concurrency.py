@@ -1,4 +1,4 @@
-"""The dashboard reads everything in one REPEATABLE READ, READ ONLY transaction.
+"""The dashboard and the calendar read everything in one REPEATABLE READ, READ ONLY transaction.
 
 A bill paid by another device while the dashboard is being built must not show up both as "to pay"
 (`finance.upcoming`) and as paid in the month's totals. Under READ COMMITTED each query would take a
@@ -24,6 +24,7 @@ from app.core.security import hash_password
 from app.main import app
 from app.models import Transaction, User
 from app.repositories import snapshot as snapshot_repo
+from app.services import task as task_service
 from app.services import transaction as transaction_service
 from tests.helpers import auth_header, make_settings, make_token
 
@@ -98,3 +99,33 @@ def test_bill_paid_while_the_dashboard_is_built_is_never_in_both_states(committe
     assert finance["month"]["expense"] == {"total": "189.90", "paid": "189.90", "pending": "0.00"}
     assert seen == {"isolation": "repeatable read", "read_only": "on"}
     assert applied == [True, True]
+
+
+def test_bill_paid_while_the_calendar_is_built_is_still_read_as_pending(committed, monkeypatch):
+    """The calendar reads events, then tasks, then bills: a payment committed between the tasks and the
+    bills must not change what this request sees (under READ COMMITTED the bill would vanish)."""
+    user_id, bill_id = committed
+    read_tasks = task_service.list_open_due_between
+    seen: dict[str, str] = {}
+
+    def pay_meanwhile(db, *args):
+        seen["isolation"] = db.scalar(text("SHOW transaction_isolation"))
+        seen["read_only"] = db.scalar(text("SHOW transaction_read_only"))
+        tasks = read_tasks(db, *args)  # the snapshot is taken by the first query of the transaction
+        with SessionLocal() as other_device:
+            transaction_service.pay(other_device, SETTINGS, user_id, bill_id, None)  # commits
+        return tasks
+
+    monkeypatch.setattr(task_service, "list_open_due_between", pay_meanwhile)
+    monkeypatch.setitem(app.dependency_overrides, get_settings, lambda: SETTINGS)
+    headers = auth_header(make_token(user_id))
+    params = {"from": "2026-10-21", "to": "2026-10-21"}
+    with TestClient(app) as client:
+        during = client.get("/api/calendar", params=params, headers=headers)
+        monkeypatch.setattr(task_service, "list_open_due_between", read_tasks)
+        after = client.get("/api/calendar", params=params, headers=headers)
+
+    assert during.status_code == 200, during.text
+    assert [(item["kind"], item["id"]) for item in during.json()] == [("bill", str(bill_id))]
+    assert after.json() == []  # the payment did commit
+    assert seen == {"isolation": "repeatable read", "read_only": "on"}
