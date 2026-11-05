@@ -9,7 +9,7 @@
 # restore). Written in the FROM (not in an ARG) so Dependabot can update it.
 # Python is Alpine's python3 3.12 (same minor as the backend); boto3 and its dependencies are pinned in
 # requirements.txt to the backend's versions.
-FROM postgres:16.10-alpine@sha256:029660641a0cfc575b14f336ba448fb8a75fd595d42e1fa316b9fb4378742297
+FROM postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
 
 ARG TARGETARCH
 # Project rule: only releases at least two weeks old (P14D = uploaded at least 14 days before the build).
