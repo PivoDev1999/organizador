@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16.10-alpine
+    image: postgres:16.14-alpine
     restart: unless-stopped
     logging: *default-logging
     environment:
@@ -29,7 +29,7 @@ services:
       retries: 10
 
   garage:
-    image: dxflrs/garage:v2.4.1
+    image: dxflrs/garage:v2.5.0
     restart: unless-stopped
     logging: *default-logging
     environment:
