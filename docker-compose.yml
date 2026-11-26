@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   postgres:
-    image: postgres:16.10-alpine
+    image: postgres:16.15-alpine
     restart: unless-stopped
     logging: *default-logging
     environment:
@@ -29,7 +29,7 @@ services:
       retries: 10
 
   garage:
-    image: dxflrs/garage:v2.4.1
+    image: dxflrs/garage:v2.5.0
     restart: unless-stopped
     logging: *default-logging
     environment:
@@ -50,7 +50,7 @@ services:
   # One-shot job: assigns the node layout, imports the S3 key and creates the buckets (app and tests).
   # Idempotent, so it is safe to run on every `docker compose up`.
   garage-init:
-    image: python:3.12.15-alpine
+    image: python:3.12.16-alpine
     restart: "no"
     logging: *default-logging
     depends_on:
@@ -69,7 +69,7 @@ services:
     command: ["python", "-u", "/init.py"]
 
   adminer:
-    image: adminer:5.4.1
+    image: adminer:5.5.0
     restart: unless-stopped
     logging: *default-logging
     depends_on:
